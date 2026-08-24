@@ -49,6 +49,8 @@ a { color: inherit; }
   --accent-soft: rgba(255,194,75,0.14);
   --violet: #a78bfa;
   --cool: #5eead4;          /* pre-cool / free-cooling accent */
+  --temp-high: #6ea8ff;     /* forecast daytime high */
+  --temp-low: #ff9d5c;      /* forecast overnight low */
   --cool-fill: rgba(94,234,212,0.14);
   --radius: 16px;
   --radius-sm: 10px;
@@ -81,7 +83,8 @@ a { color: inherit; }
   --shadow: 0 12px 32px -16px rgba(15,23,42,0.28);
   --accent-ink: #b7801a;
 }
-[data-theme="light"] { --cool: #0d7d70; --cool-fill: rgba(13,125,112,0.10); }
+[data-theme="light"] { --cool: #0d7d70; --cool-fill: rgba(13,125,112,0.10);
+  --temp-high: #2563eb; --temp-low: #c2410c; }
 [data-theme="light"][data-fuel="gas"] { --accent-ink: #0d9488; }
 
 /* ---- base -------------------------------------------------------------- */
@@ -287,7 +290,7 @@ body {
 .ps-lbl { color: var(--text-mute); font-size: 12px; }
 .split-bar { display: flex; height: 30px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border); }
 .split-seg { height: 100%; transition: width .4s ease; }
-.split-legend { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+.split-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
 .split-legend-item .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 .split-legend-item b { color: var(--text); }
 .peak-caption { margin-top: 12px; color: var(--text-dim); font-size: 13px; }
@@ -333,7 +336,7 @@ body {
 .fc-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--border); }
 .fc-day.fc-hot { border-color: rgba(255,157,60,0.45); background: rgba(255,157,60,0.08); }
 .fc-day.fc-extreme { border-color: rgba(255,92,108,0.5); background: rgba(255,92,108,0.10); }
-.fc-day.fc-off { opacity: .72; }
+.fc-day.fc-off { background: var(--panel); border-style: dashed; }
 .fc-dow { font-size: 11px; color: var(--text-mute); font-weight: 600; }
 .fc-ico { font-size: 16px; line-height: 1.3; }
 .fc-hi { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -350,7 +353,10 @@ body {
 .ac-table tr.ac-key td:first-child { font-weight: 700; }
 .ac-note { color: var(--text-mute); font-size: 12.5px; }
 .ac-count { font-size: 11px; font-weight: 700; background: var(--accent); color: #17130a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
-.ac-band-dim td { opacity: .5; }
+/* De-emphasize bands no forecast day hits WITHOUT stacking alpha onto
+   --text-mute, which put .ac-note at ~1.7:1 in light theme. */
+.ac-band-dim td { background: var(--panel-2); }
+.ac-band-dim .ac-note { color: var(--text-dim); }
 .ac-only-two { color: var(--text-dim); font-size: 13.5px; margin-top: 12px; max-width: 70ch; }
 .ac-only-two b { color: var(--text); }
 
@@ -1370,6 +1376,28 @@ body {
 
   /* ---- TOU rate detection ---------------------------------------------- */
   /*
+   * Downstream consumers (acplan, tips, the heatmap band, the window label)
+   * treat peakHours as a WINDOW: first hour .. last hour + 1. detectRates tests
+   * each hour independently, so a single noisy hour that clears the threshold
+   * would relocate that window. Keep only the dominant contiguous run, merging
+   * across midnight so a wrapping window survives intact.
+   */
+  function peakWindow(hours) {
+    if (hours.length < 2) return hours;
+    var runs = [[hours[0]]];
+    for (var i = 1; i < hours.length; i++) {
+      if (hours[i] === hours[i - 1] + 1) runs[runs.length - 1].push(hours[i]);
+      else runs.push([hours[i]]);
+    }
+    var first = runs[0], last = runs[runs.length - 1];
+    if (runs.length > 1 && first[0] === 0 && last[last.length - 1] === 23) {
+      runs[runs.length - 1] = last.concat(first);   // e.g. 22,23,0,1
+      runs.shift();
+    }
+    return runs.reduce(function (a, b) { return b.length > a.length ? b : a; });
+  }
+
+  /*
    * We infer the rate schedule straight from the data: implied $/unit for each
    * interval is cost / usage. If certain hours are systematically pricier, that
    * is the peak window — no hard-coded assumptions about the customer's plan.
@@ -1409,6 +1437,10 @@ body {
         if (m >= overall * 1.12) peakHours.push(hr);
       }
     }
+
+    // Collapse to the dominant window before rates are averaged, so a stray
+    // hour cannot skew peakRate/offPeakRate either.
+    peakHours = peakWindow(peakHours);
 
     if (peakHours.length) {
       var peakR = [], offR = [];
@@ -2577,12 +2609,14 @@ body {
   function fetchJson(url, timeoutMs) {
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, timeoutMs || 12000);
+    // Clear the deadline only once the BODY has been read: a server that sends
+    // headers and then stalls would otherwise hang the UI on "Fetching…".
     return fetch(url, { signal: ctrl.signal, mode: "cors" })
       .then(function (r) {
-        clearTimeout(to);
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       })
+      .then(function (j) { clearTimeout(to); return j; })
       .catch(function (e) { clearTimeout(to); throw e; });
   }
 
@@ -2914,9 +2948,12 @@ body {
       var k = bandFor(d.tMax).key;
       counts[k] = (counts[k] || 0) + 1;
     });
-    var typicalKey = Object.keys(counts).reduce(function (a, b) {
-      return counts[a] >= counts[b] ? a : b;
-    });
+    // BANDS runs coolest -> hottest, so ">=" breaks count ties toward the hotter
+    // band. Folding over BANDS (not Object.keys) also keeps the result
+    // independent of the order the days happen to appear in the forecast.
+    var typicalKey = BANDS.reduce(function (a, b) {
+      return (counts[b.key] || 0) >= (counts[a.key] || 0) ? b : a;
+    }).key;
     var typical = BANDS.filter(function (b) { return b.key === typicalKey; })[0] || bandFor(medHigh);
     // A week of genuinely mild days still needs a fallback schedule to show.
     var scheduleBand = typical.precool == null ? BANDS[1] : typical;
@@ -2940,6 +2977,9 @@ body {
       avgLow: avgLow,
       minLow: S.min(lows),
       maxLow: S.max(lows),
+      // Applicability is judged on the mean (a mostly-cool week is still worth
+      // flushing), but the copy must not claim a range it doesn't have.
+      allUnder: S.max(lows) < scheduleBand.sleep,
       setpoint: scheduleBand.sleep,
       openHour: peakEndHour,
       closeHour: 8
@@ -3086,6 +3126,20 @@ body {
   }
 
   var SEV_COLOR = { high: "#ff5c6c", medium: "#ffb020", low: "#6ea8ff" };
+
+  /* peakHours may wrap midnight (e.g. [22,23,0,1]); split into ascending
+     contiguous segments so a band is never drawn past hour 23 or with a
+     negative width. */
+  function peakSegments(hours) {
+    if (!hours || !hours.length) return [];
+    var sorted = hours.slice().sort(function (a, b) { return a - b; });
+    var segs = [[sorted[0]]];
+    for (var i = 1; i < sorted.length; i++) {
+      if (sorted[i] === sorted[i - 1] + 1) segs[segs.length - 1].push(sorted[i]);
+      else segs.push([sorted[i]]);
+    }
+    return segs.map(function (g) { return { start: g[0], end: g[g.length - 1] }; });
+  }
 
   /* ---- shared tooltip --------------------------------------------------- */
 
@@ -3284,11 +3338,17 @@ body {
     var peakHours = opts.peakHours || [];
 
     // peak window backdrop
-    if (peakHours.length) {
-      var px = m.l + peakHours[0] * cellW;
-      var pw = peakHours.length * cellW;
-      svg.appendChild(el("rect", { x: px, y: 4, width: pw, height: H - 8, rx: 3, class: "peak-band" }));
-      var pl = el("text", { x: px + pw / 2, y: 12, class: "axis-label", "text-anchor": "middle",
+    var pSegs = peakSegments(peakHours);
+    if (pSegs.length) {
+      var widest = pSegs.reduce(function (a, b) {
+        return (b.end - b.start) > (a.end - a.start) ? b : a;
+      });
+      pSegs.forEach(function (seg) {
+        svg.appendChild(el("rect", { x: m.l + seg.start * cellW, y: 4,
+          width: (seg.end - seg.start + 1) * cellW, height: H - 8, rx: 3, class: "peak-band" }));
+      });
+      var lx = m.l + (widest.start + (widest.end - widest.start + 1) / 2) * cellW;
+      var pl = el("text", { x: lx, y: 12, class: "axis-label", "text-anchor": "middle",
         style: "font-weight:600;fill:var(--accent)" });
       pl.textContent = "PEAK " + opts.peakLabel;
       svg.appendChild(pl);
@@ -3403,11 +3463,10 @@ body {
 
     // peak shading
     var peakHours = opts.peakHours || [];
-    if (peakHours.length) {
-      svg.appendChild(el("rect", { x: X(peakHours[0]), y: m.t,
-        width: X(peakHours[peakHours.length - 1]) - X(peakHours[0]) + iw / 23, height: ih,
-        class: "peak-band" }));
-    }
+    peakSegments(peakHours).forEach(function (seg) {
+      svg.appendChild(el("rect", { x: X(seg.start), y: m.t,
+        width: X(seg.end) - X(seg.start) + iw / 23, height: ih, class: "peak-band" }));
+    });
 
     // y grid
     niceTicks(0, vmax, 4).forEach(function (v) {
@@ -3682,8 +3741,8 @@ body {
     svg.appendChild(el("path", { d: gapD + " Z", stroke: "none", class: "gap-fill" }));
 
     var SERIES = [
-      { key: "tMax", color: "#6ea8ff", label: "Daytime high" },
-      { key: "tMin", color: "#ff9d5c", label: "Overnight low" }
+      { key: "tMax", color: "var(--temp-high)", label: "Daytime high" },
+      { key: "tMin", color: "var(--temp-low)", label: "Overnight low" }
     ];
     SERIES.forEach(function (s) {
       var d = "";
@@ -3729,8 +3788,8 @@ body {
     var legend = document.createElement("div");
     legend.className = "split-legend";
     legend.innerHTML =
-      "<div class='split-legend-item'><span class='dot' style='background:#6ea8ff'></span>Daytime high</div>" +
-      "<div class='split-legend-item'><span class='dot' style='background:#ff9d5c'></span>Overnight low</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--temp-high)'></span>Daytime high</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--temp-low)'></span>Overnight low</div>" +
       "<div class='split-legend-item'><span class='dot' style='background:var(--cool)'></span>Your " +
         fmt.num(opts.setpoint, 0) + "° setting</div>";
     container.appendChild(legend);
@@ -3773,6 +3832,7 @@ body {
     data: { electric: null, gas: null },   // { dataset, analysis } per fuel
     weather: { electric: null, gas: null },
     weatherStatus: { electric: "", gas: "" },
+    zipEntry: { electric: "", gas: "" },   // last ZIP the user typed, per fuel
     tips: { electric: [], gas: [] },
     questions: { electric: null, gas: null },
     activeFuel: null,
@@ -4265,6 +4325,8 @@ body {
     // weather panel (electric only)
     if (a.fuel === "electric") { weatherPanel.hidden = false; renderWeather(a); }
     else { weatherPanel.hidden = true; }
+
+    renderAcChart();
   }
 
   function renderPeak(a) {
@@ -4296,7 +4358,7 @@ body {
     var box = document.getElementById("weather-content");
     var wj = State.weather[State.activeFuel];
     var status = State.weatherStatus[State.activeFuel];
-    var zipGuess = App.weather.extractZip(a.meta.address);
+    var zipGuess = State.zipEntry[State.activeFuel] || App.weather.extractZip(a.meta.address);
 
     if (wj && wj.available) {
       var hot = wj.daily.filter(function (d) { return d.tMax != null && d.tMax >= wj.hotThresh; });
@@ -4332,30 +4394,50 @@ body {
           "stays in the browser.</p>" +
         "<div class='wx-form'>" +
           "<input id='wx-zip' class='input' type='text' inputmode='numeric' maxlength='5' placeholder='ZIP' value='" +
-            (zipGuess || "") + "' />" +
+            esc(zipGuess || "") + "' />" +
           "<button id='wx-go' class='btn btn-primary'" + (loading ? " disabled" : "") + ">" +
             (loading ? "Fetching…" : "🌦️ Add local weather") + "</button>" +
         "</div>" +
-        (status && status !== "loading" ? "<div class='wx-status'>" + status + "</div>" : "") +
+        (status && status !== "loading" ? "<div class='wx-status'>" + esc(status) + "</div>" : "") +
       "</div>";
     var go = document.getElementById("wx-go");
     if (go) go.onclick = function () {
       var zip = (document.getElementById("wx-zip").value || "").trim();
       fetchWeather(zip);
     };
+    var wzi = document.getElementById("wx-zip");
+    if (wzi) wzi.oninput = function () { State.zipEntry[State.activeFuel] = this.value.trim(); };
   }
+
+  var wxSeq = 0;   // guards against a stale response overwriting a newer one
 
   function fetchWeather(zip) {
     var fuel = State.activeFuel;
     var a = State.data[fuel].analysis;
+    var seq = ++wxSeq;
+    State.zipEntry[fuel] = zip;
     State.weatherStatus[fuel] = "loading";
-    renderWeather(a);
+    renderWeather(a); renderAcPlan();
     App.weather.enrich(a, { zip: zip }).then(function (wj) {
+      if (seq !== wxSeq) return;                       // a newer lookup superseded this one
+      // Only half the lookup may have succeeded. For the same location, keep
+      // whichever half we already had rather than destroying data on screen.
+      var prev = State.weather[fuel];
+      var sameLoc = prev && prev.lat === wj.lat && prev.lon === wj.lon;
+      if (sameLoc) {
+        if (!wj.forecast && prev.forecast) { wj.forecast = prev.forecast; wj.current = prev.current; }
+        if (!wj.available && prev.available) {
+          wj.tempByKey = prev.tempByKey; wj.daily = prev.daily;
+          wj.corr = prev.corr; wj.hotThresh = prev.hotThresh;
+          wj.unit = prev.unit; wj.available = true;
+        }
+      }
       State.weather[fuel] = wj;
       State.weatherStatus[fuel] = wj.available ? "" : "No weather data was available for that location/date range.";
       regenTips();
       renderWeather(a); renderTips(); renderSavings(); renderAcPlan();
     }).catch(function (e) {
+      if (seq !== wxSeq) return;
       State.weatherStatus[fuel] = (e && e.message ? e.message : "Weather lookup failed.") +
         " You can still use every other feature.";
       renderWeather(a); renderAcPlan();
@@ -4371,6 +4453,19 @@ body {
     });
   }
 
+  // Cached so the forecast chart can be redrawn (resize / theme / metric)
+  // without rebuilding the panel HTML, which would wipe an in-progress ZIP.
+  var lastAcPlan = null;
+
+  function renderAcChart() {
+    var panel = document.getElementById("panel-acplan");
+    var holder = document.getElementById("ac-chart");
+    if (!panel || panel.hidden || !holder || !lastAcPlan) return;
+    charts.forecastLines(holder, {
+      days: lastAcPlan.days, setpoint: lastAcPlan.scheduleBand.sleep, height: 240
+    });
+  }
+
   function acRow(cells, cls) {
     return "<tr" + (cls ? " class='" + cls + "'" : "") + ">" +
       cells.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
@@ -4380,6 +4475,7 @@ body {
     var box = document.getElementById("acplan-content");
     var panel = document.getElementById("panel-acplan");
     var a = State.data[State.activeFuel].analysis;
+    lastAcPlan = null;   // cleared here so every early return below invalidates it
 
     if (a.fuel !== "electric" || a.granularity !== "hourly") { panel.hidden = true; return; }
     panel.hidden = false;
@@ -4397,21 +4493,23 @@ body {
         return;
       }
       var status = State.weatherStatus[State.activeFuel];
-      var zipGuess = App.weather.extractZip(a.meta.address);
+      var zipGuess = State.zipEntry[State.activeFuel] || App.weather.extractZip(a.meta.address);
       box.innerHTML =
         "<div class='ac-cta'><p>Enter your ZIP and Wattwise pulls your local forecast, then builds a " +
           "thermostat schedule around your " + (a.rates.detected ? a.rates.peakWindowLabel : "peak") +
           " window — exact temperatures, exact times.</p>" +
         "<div class='wx-form'>" +
           "<input id='ac-zip' class='input' type='text' inputmode='numeric' maxlength='5' placeholder='ZIP' value='" +
-            (zipGuess || "") + "' />" +
+            esc(zipGuess || "") + "' />" +
           "<button id='ac-go' class='btn btn-primary'" + (status === "loading" ? " disabled" : "") + ">" +
             (status === "loading" ? "Fetching…" : "Build my AC schedule") + "</button>" +
         "</div>" +
-        (status && status !== "loading" ? "<div class='wx-status'>" + status + "</div>" : "") +
+        (status && status !== "loading" ? "<div class='wx-status'>" + esc(status) + "</div>" : "") +
         "</div>";
       var go = document.getElementById("ac-go");
       if (go) go.onclick = function () { fetchWeather((document.getElementById("ac-zip").value || "").trim()); };
+      var zi = document.getElementById("ac-zip");
+      if (zi) zi.oninput = function () { State.zipEntry[State.activeFuel] = this.value.trim(); };
       return;
     }
 
@@ -4464,9 +4562,15 @@ body {
     var nf = plan.nightFlush;
     var flushHtml = nf.applicable
       ? "<div class='ac-flush'><div class='ac-flush-num'>" + fmt.num(nf.gap, 0) + "°</div>" +
-        "<div class='ac-flush-body'><b>Free air conditioning every night.</b> Lows run " +
-        fmt.num(nf.minLow, 0) + "–" + fmt.num(nf.maxLow, 0) + "° this week, well under your " +
-        nf.setpoint + "° setting. Open windows around " + fmt.hour12(nf.openHour) +
+        "<div class='ac-flush-body'><b>Free air conditioning " +
+        (nf.allUnder ? "every night" : "most nights") + ".</b> " +
+        (nf.allUnder
+          ? "Lows run " + fmt.num(nf.minLow, 0) + "–" + fmt.num(nf.maxLow, 0) +
+            "° this week, well under your " + nf.setpoint + "° setting."
+          : "Lows average " + fmt.num(nf.avgLow, 0) + "°, well under your " + nf.setpoint +
+            "° setting — though the warmest night only drops to " + fmt.num(nf.maxLow, 0) +
+            "°, so skip the flush that night.") +
+        " Open windows around " + fmt.hour12(nf.openHour) +
         " once it's cooler outside than in, and close them by " + fmt.hour12(nf.closeHour) +
         " before the outside air passes your indoor temperature." +
         (plan.morningLoad ? " On most days that alone handles your mornings — it may erase the " +
@@ -4513,9 +4617,8 @@ body {
           plan.caution + "</span></div>" +
       "</div>";
 
-    charts.forecastLines(document.getElementById("ac-chart"), {
-      days: plan.days, setpoint: plan.scheduleBand.sleep, height: 240
-    });
+    lastAcPlan = plan;
+    renderAcChart();
   }
 
   /* ---- rendering: context / diagnostic questions ----------------------- */
@@ -4854,7 +4957,7 @@ body {
     });
 
     window.addEventListener("resize", debounce(function () {
-      if (State.activeFuel) renderCharts();
+      if (State.activeFuel) renderCharts();   // renderCharts() also redraws the AC chart
     }, 180));
   }
 
