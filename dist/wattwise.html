@@ -484,6 +484,80 @@ body {
 .bp-warn { color: #ffb3bc; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 
+/* ---- account menu ------------------------------------------------------ */
+.account-menu { position: relative; }
+.avatar { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-ink)); color: #17130a;
+  font-size: 11px; font-weight: 800; margin-right: 2px; }
+.dropdown { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; z-index: 50;
+  background: var(--panel-elev); border: 1px solid var(--border-strong); border-radius: 12px;
+  padding: 6px; box-shadow: var(--shadow); }
+.dropdown-email { padding: 8px 10px 10px; font-size: 12.5px; color: var(--text-mute);
+  border-bottom: 1px solid var(--border); margin-bottom: 4px; word-break: break-all; }
+.dropdown-item { display: block; width: 100%; text-align: left; background: none; border: none;
+  padding: 9px 10px; border-radius: 8px; font-size: 13.5px; color: var(--text-dim); }
+.dropdown-item:hover { background: var(--panel-2); color: var(--text); }
+
+/* ---- onboarding -------------------------------------------------------- */
+.onboard { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px;
+  background: rgba(4,8,16,0.72); backdrop-filter: blur(6px); overflow-y: auto;
+  animation: fade .2s ease both; }
+[data-theme="light"] .onboard { background: rgba(15,23,42,0.42); }
+.onboard-card { position: relative; width: min(560px, 100%); background: var(--panel);
+  border: 1px solid var(--border-strong); border-radius: 20px; padding: 26px;
+  box-shadow: var(--shadow); animation: rise .28s ease both; margin: auto; }
+.onboard-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.ob-mark { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; }
+.ob-steps { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.ob-step { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-mute); }
+.ob-step i { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); display: block; }
+.ob-step.active { color: var(--text); font-weight: 700; }
+.ob-step.active i { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ob-step.done i { background: var(--accent); opacity: .55; }
+.onboard-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.onboard-lede { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+.onboard-body { margin-top: 18px; }
+.onboard-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.ob-tabs { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+.ob-tab { border: none; background: none; color: var(--text-mute); font-weight: 600; font-size: 13px;
+  padding: 7px 14px; border-radius: 7px; }
+.ob-tab.active { background: var(--panel-elev); color: var(--text); box-shadow: var(--shadow); }
+.ob-fields { display: grid; gap: 12px; }
+.ob-fields .field .input { width: 100%; }
+.ob-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 14px; }
+.ob-privacy { margin-top: 14px; font-size: 12.5px; color: var(--text-mute); }
+.ob-notice { background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 12px; padding: 14px; font-size: 14px; color: var(--text-dim); }
+.ob-notice b { color: var(--text); }
+.ob-error { margin-top: 14px; padding: 10px 13px; border-radius: 10px; font-size: 13.5px;
+  background: rgba(255,92,108,0.12); border: 1px solid rgba(255,92,108,0.4); color: #ffb3bc; }
+[data-theme="light"] .ob-error { color: #b4232f; }
+.ob-drop { margin-top: 0; padding: 28px 20px; }
+.ob-filelist { margin-top: 12px; display: grid; gap: 6px; }
+.ob-file { font-size: 13.5px; color: var(--text-dim); background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+
+/* ---- saved uploads ----------------------------------------------------- */
+.uploads-list { display: flex; flex-direction: column; gap: 8px; }
+.upload-row { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 12px; align-items: center;
+  padding: 11px 13px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--border); }
+.upload-row.up-active { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: var(--accent-soft); }
+.up-fuel { font-size: 18px; text-align: center; }
+.up-name { font-weight: 650; font-size: 14px; }
+.up-badge { font-size: 10.5px; font-weight: 700; background: var(--accent); color: #17130a;
+  border-radius: 999px; padding: 1px 7px; vertical-align: middle; }
+.up-meta { color: var(--text-mute); font-size: 12.5px; margin-top: 2px; }
+.up-cycle { margin-left: 6px; }
+.up-nocycle { color: var(--accent-ink); }
+.up-nums { text-align: right; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.up-cost { display: block; color: var(--text-mute); font-size: 12px; }
+.up-actions { display: flex; gap: 12px; }
+@media (max-width: 640px) {
+  .upload-row { grid-template-columns: 26px 1fr; }
+  .up-nums, .up-actions { grid-column: 2; text-align: left; }
+}
+
 /* ---- footer ------------------------------------------------------------ */
 .footer { max-width: var(--maxw); margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 40px; display: flex; flex-direction: column; gap: 4px; color: var(--text-mute); font-size: 12.5px; border-top: 1px solid var(--border); margin-top: 30px; }
 .footer-dim { color: color-mix(in srgb, var(--text-mute) 75%, transparent); }
@@ -522,7 +596,17 @@ body {
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="btn-new" class="btn btn-ghost" hidden>＋ Add / replace files</button>
+      <button id="btn-new" class="btn btn-ghost" hidden>＋ Upload CSV</button>
+      <div id="account-menu" class="account-menu" hidden>
+        <button id="btn-account" class="btn btn-ghost" aria-haspopup="true" aria-expanded="false">
+          <span id="account-avatar" class="avatar"></span><span id="account-label">Account</span>
+        </button>
+        <div id="account-dropdown" class="dropdown" hidden>
+          <div id="account-email" class="dropdown-email"></div>
+          <button id="btn-edit-home" class="dropdown-item">🏠 Home &amp; ZIP settings</button>
+          <button id="btn-signout" class="dropdown-item">Sign out</button>
+        </div>
+      </div>
       <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark" aria-label="Toggle theme">
         <span class="theme-icon">◑</span>
       </button>
@@ -587,6 +671,18 @@ body {
       </div>
 
       <div id="kpis" class="kpi-grid"></div>
+
+      <!-- Saved uploads -->
+      <div id="panel-uploads" class="panel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">📂 Your uploads</h2>
+            <span class="panel-sub">Every file you've analyzed, saved to your account</span>
+          </div>
+          <button id="btn-upload-more" class="btn btn-ghost btn-sm">＋ Upload another</button>
+        </div>
+        <div id="uploads-list" class="uploads-list"></div>
+      </div>
 
       <!-- Billing cycle -->
       <div id="panel-billing" class="panel">
@@ -733,6 +829,26 @@ body {
     <span class="footer-dim">Not affiliated with or endorsed by PG&amp;E. Estimates are indicative, not billing-accurate.</span>
   </footer>
 
+  <!-- ===================== Onboarding / auth ===================== -->
+  <div id="onboard" class="onboard" hidden>
+    <div class="onboard-card" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+      <div class="onboard-head">
+        <span class="brand-mark ob-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/>
+          </svg>
+        </span>
+        <div id="ob-steps" class="ob-steps" aria-hidden="true"></div>
+        <button id="ob-close" class="modal-close" aria-label="Close" hidden>✕</button>
+      </div>
+      <h2 id="ob-title" class="onboard-title"></h2>
+      <p id="ob-lede" class="onboard-lede"></p>
+      <div id="ob-body" class="onboard-body"></div>
+      <p id="ob-error" class="ob-error" hidden></p>
+      <div id="ob-actions" class="onboard-actions"></div>
+    </div>
+  </div>
+
   <!-- ===================== Billing cycle modal ===================== -->
   <div id="billing-modal" class="modal-backdrop" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="billing-modal-title">
@@ -762,6 +878,32 @@ body {
   </div>
 
   <!-- Load order matters: utilities → engine → charts → app -->
+  <script>
+/* ============================================================================
+ * config.js — Backend configuration.
+ *
+ * The URL and publishable key below are meant to ship in client code: the key
+ * only identifies the project, and every table is protected by Postgres
+ * row-level security, so a signed-in person can read and write their own rows
+ * and nothing else. It is NOT a secret and grants no access on its own.
+ *
+ * Set `url` to "" to build a purely local, account-free version of the app.
+ * ==========================================================================*/
+(function (App) {
+  "use strict";
+
+  App.config = {
+    supabase: {
+      url: "https://rhdtwvdcwlmaptdutelx.supabase.co",
+      publishableKey: "sb_publishable_zmi1YyO8v8qJQCCxwTKL5g_uC265Eiw"
+    },
+    // Where a confirmation link should send people back to. Overridden at
+    // runtime with the current origin so it works on any deployment.
+    redirectTo: null
+  };
+})(window.App = window.App || {});
+
+</script>
   <script>
 // Auto-generated inlined sample data so the demo works offline (even over file://).
 // Source: ANONYMIZED PG&E interval exports bundled in /sample-data.
@@ -3814,6 +3956,889 @@ body {
 </script>
   <script>
 /* ============================================================================
+ * api.js — Auth + data access, spoken directly to Supabase over REST.
+ *
+ * No SDK and no build step: GoTrue for auth, PostgREST for data, both plain
+ * fetch. That keeps the app a static site you can open from a file, and keeps
+ * the dependency count at zero like the rest of the codebase.
+ *
+ * The session (access + refresh token) lives in localStorage. Access tokens are
+ * short-lived, so every request refreshes proactively when the token is close
+ * to expiry and retries once on a 401.
+ *
+ * Every table is guarded by row-level security server-side; the filters here
+ * are for correctness and payload size, never for access control.
+ * ==========================================================================*/
+(function (App) {
+  "use strict";
+
+  var SESSION_KEY = "wattwise.session.v1";
+  var cfg = (App.config && App.config.supabase) || {};
+  var BASE = cfg.url || "";
+  var KEY = cfg.publishableKey || "";
+
+  var session = null;      // { access_token, refresh_token, expires_at, user }
+  var refreshing = null;   // in-flight refresh, so parallel calls share one
+
+  function configured() { return !!(BASE && KEY); }
+
+  /* ---- session persistence --------------------------------------------- */
+
+  function loadSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      session = raw ? JSON.parse(raw) : null;
+    } catch (e) { session = null; }
+    return session;
+  }
+  function saveSession(s) {
+    session = s;
+    try {
+      if (s) localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+      else localStorage.removeItem(SESSION_KEY);
+    } catch (e) {}
+  }
+  function currentUser() { return session && session.user ? session.user : null; }
+  function signedIn() { return !!(session && session.access_token); }
+
+  function storeAuthResponse(d) {
+    if (!d || !d.access_token) return null;
+    var s = {
+      access_token: d.access_token,
+      refresh_token: d.refresh_token,
+      // expires_in is seconds; keep an absolute ms deadline.
+      expires_at: Date.now() + ((d.expires_in || 3600) * 1000),
+      user: d.user || null
+    };
+    saveSession(s);
+    return s;
+  }
+
+  /* ---- low-level fetch --------------------------------------------------- */
+
+  function friendlyNetworkError(e) {
+    var msg = (e && e.message) || "";
+    if (/failed to fetch|networkerror|load failed|abort|timeout/i.test(msg) || e instanceof TypeError) {
+      return "Can't reach the server — check your connection and try again.";
+    }
+    return msg || "Something went wrong.";
+  }
+
+  function request(path, opts) {
+    opts = opts || {};
+    var headers = { apikey: KEY };
+    if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+    if (opts.headers) for (var h in opts.headers) headers[h] = opts.headers[h];
+    if (opts.auth !== false) {
+      headers.Authorization = "Bearer " + ((session && session.access_token) || KEY);
+    }
+    var ctrl = new AbortController();
+    var to = setTimeout(function () { ctrl.abort(); }, opts.timeout || 20000);
+    return fetch(BASE + path, {
+      method: opts.method || "GET",
+      headers: headers,
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      signal: ctrl.signal
+    }).then(function (r) {
+      return r.text().then(function (text) {
+        clearTimeout(to);
+        var data = null;
+        if (text) { try { data = JSON.parse(text); } catch (e) { data = text; } }
+        if (!r.ok) {
+          var err = new Error(
+            (data && (data.msg || data.message || data.error_description || data.error)) ||
+            ("Request failed (" + r.status + ")")
+          );
+          err.status = r.status;
+          err.code = data && (data.error_code || data.code);
+          throw err;
+        }
+        return data;
+      });
+    }).catch(function (e) {
+      clearTimeout(to);
+      if (e && e.status) throw e;
+      throw new Error(friendlyNetworkError(e));
+    });
+  }
+
+  /* ---- token refresh ----------------------------------------------------- */
+
+  function refreshSession() {
+    if (!session || !session.refresh_token) return Promise.reject(new Error("Not signed in."));
+    if (refreshing) return refreshing;
+    refreshing = request("/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", auth: false,
+      headers: { Authorization: "Bearer " + KEY },
+      body: { refresh_token: session.refresh_token }
+    }).then(function (d) {
+      refreshing = null;
+      var s = storeAuthResponse(d);
+      if (!s) throw new Error("Could not refresh the session.");
+      return s;
+    }).catch(function (e) {
+      refreshing = null;
+      saveSession(null);          // refresh token is dead; force a fresh sign-in
+      throw e;
+    });
+    return refreshing;
+  }
+
+  /* Any authenticated call goes through here: refresh early, retry once on 401. */
+  function authed(path, opts) {
+    if (!signedIn()) return Promise.reject(new Error("Not signed in."));
+    var soon = session.expires_at && (session.expires_at - Date.now() < 60000);
+    var start = soon ? refreshSession() : Promise.resolve();
+    return start.then(function () {
+      return request(path, opts);
+    }).catch(function (e) {
+      if (e && e.status === 401 && session && session.refresh_token) {
+        return refreshSession().then(function () { return request(path, opts); });
+      }
+      throw e;
+    });
+  }
+
+  /* ---- auth -------------------------------------------------------------- */
+
+  function signUp(email, password, displayName) {
+    var redirect = (App.config && App.config.redirectTo) ||
+      (location.origin && location.origin !== "null" ? location.origin + location.pathname : null);
+    var body = { email: email, password: password, data: { display_name: displayName || "" } };
+    var q = redirect ? "?redirect_to=" + encodeURIComponent(redirect) : "";
+    return request("/auth/v1/signup" + q, { method: "POST", auth: false, body: body })
+      .then(function (d) {
+        // With email confirmation enabled the response carries a user but no
+        // token; the caller shows a "check your inbox" state instead.
+        var s = storeAuthResponse(d);
+        return { session: s, needsConfirmation: !s, user: d && (d.user || d) };
+      });
+  }
+
+  function signIn(email, password) {
+    return request("/auth/v1/token?grant_type=password", {
+      method: "POST", auth: false, body: { email: email, password: password }
+    }).then(function (d) {
+      var s = storeAuthResponse(d);
+      if (!s) throw new Error("Sign-in failed.");
+      return s;
+    });
+  }
+
+  function signOut() {
+    var had = signedIn();
+    var done = had
+      ? authed("/auth/v1/logout", { method: "POST" }).catch(function () { /* local sign-out regardless */ })
+      : Promise.resolve();
+    return done.then(function () { saveSession(null); });
+  }
+
+  /* Confirm the stored session still works, and refresh the cached user. */
+  function restore() {
+    if (!configured() || !loadSession()) return Promise.resolve(null);
+    return authed("/auth/v1/user", {}).then(function (u) {
+      if (u && u.id) { session.user = u; saveSession(session); }
+      return session;
+    }).catch(function () {
+      saveSession(null);
+      return null;
+    });
+  }
+
+  function resetPassword(email) {
+    var redirect = (App.config && App.config.redirectTo) ||
+      (location.origin && location.origin !== "null" ? location.origin + location.pathname : null);
+    return request("/auth/v1/recover", {
+      method: "POST", auth: false,
+      body: redirect ? { email: email, redirect_to: redirect } : { email: email }
+    });
+  }
+
+  /* ---- data (PostgREST) -------------------------------------------------- */
+
+  function qs(params) {
+    var parts = [];
+    for (var k in params) {
+      if (params[k] !== undefined && params[k] !== null) {
+        parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(params[k]));
+      }
+    }
+    return parts.length ? "?" + parts.join("&") : "";
+  }
+
+  function uid() {
+    var u = currentUser();
+    return u && u.id;
+  }
+
+  /* -- profile -- */
+  function getProfile() {
+    return authed("/rest/v1/profiles" + qs({ select: "*", id: "eq." + uid(), limit: 1 }), {})
+      .then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  function upsertProfile(patch) {
+    var row = {};
+    for (var k in patch) row[k] = patch[k];
+    row.id = uid();
+    row.updated_at = new Date().toISOString();
+    return authed("/rest/v1/profiles" + qs({ on_conflict: "id" }), {
+      method: "POST", body: row,
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" }
+    }).then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  /* -- uploads -- */
+  function listUploads() {
+    return authed("/rest/v1/uploads" + qs({
+      select: "id,file_name,fuel,unit,granularity,period_start,period_end,row_count,total_usage,total_cost,billing_start,billing_end,created_at",
+      user_id: "eq." + uid(), order: "created_at.desc"
+    }), {});
+  }
+
+  function getUpload(id) {
+    return authed("/rest/v1/uploads" + qs({ select: "*", id: "eq." + id, limit: 1 }), {})
+      .then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  function createUpload(row) {
+    row.user_id = uid();
+    return authed("/rest/v1/uploads", {
+      method: "POST", body: row, headers: { Prefer: "return=representation" }
+    }).then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  function updateUpload(id, patch) {
+    return authed("/rest/v1/uploads" + qs({ id: "eq." + id }), {
+      method: "PATCH", body: patch, headers: { Prefer: "return=representation" }
+    }).then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  function deleteUpload(id) {
+    return authed("/rest/v1/uploads" + qs({ id: "eq." + id }), { method: "DELETE" });
+  }
+
+  /* -- annotations -- */
+  function listAnnotations(uploadId) {
+    return authed("/rest/v1/annotations" + qs({
+      select: "date_key,away,cause", upload_id: "eq." + uploadId
+    }), {});
+  }
+
+  function saveAnnotation(uploadId, dateKey, patch) {
+    var row = {
+      user_id: uid(), upload_id: uploadId, date_key: dateKey,
+      away: !!patch.away, cause: patch.cause || null,
+      updated_at: new Date().toISOString()
+    };
+    return authed("/rest/v1/annotations" + qs({ on_conflict: "upload_id,date_key" }), {
+      method: "POST", body: row,
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" }
+    });
+  }
+
+  /* -- answers -- */
+  function listAnswers() {
+    return authed("/rest/v1/answers" + qs({
+      select: "fuel,question_id,value", user_id: "eq." + uid()
+    }), {});
+  }
+
+  function saveAnswer(fuel, questionId, value) {
+    var row = {
+      user_id: uid(), fuel: fuel, question_id: questionId,
+      value: value === undefined ? null : value,
+      updated_at: new Date().toISOString()
+    };
+    return authed("/rest/v1/answers" + qs({ on_conflict: "user_id,fuel,question_id" }), {
+      method: "POST", body: row,
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" }
+    });
+  }
+
+  App.api = {
+    configured: configured,
+    loadSession: loadSession,
+    signedIn: signedIn,
+    currentUser: currentUser,
+    restore: restore,
+    signUp: signUp,
+    signIn: signIn,
+    signOut: signOut,
+    resetPassword: resetPassword,
+    getProfile: getProfile,
+    upsertProfile: upsertProfile,
+    listUploads: listUploads,
+    getUpload: getUpload,
+    createUpload: createUpload,
+    updateUpload: updateUpload,
+    deleteUpload: deleteUpload,
+    listAnnotations: listAnnotations,
+    saveAnnotation: saveAnnotation,
+    listAnswers: listAnswers,
+    saveAnswer: saveAnswer
+  };
+})(window.App = window.App || {});
+
+</script>
+  <script>
+/* ============================================================================
+ * account.js — Accounts, onboarding, and the saved-uploads library.
+ *
+ * The onboarding flow is deliberately short — four steps, each asking only for
+ * something the analysis actually uses:
+ *
+ *   1. Account   — sign up, sign in, or explore without an account.
+ *   2. Your home — ZIP (asked ONCE, here) plus the handful of facts that
+ *                  sharpen the recommendations.
+ *   3. Upload    — the CSV.
+ *   4. Billing   — the cycle dates for that file (confirmed on EVERY upload,
+ *                  since a new export usually covers a new period).
+ *
+ * Guest mode is a first-class path: everything works without an account, backed
+ * by localStorage, and signing up later keeps the app behaving identically.
+ * App.store hides which of the two is in play from the rest of the app.
+ * ==========================================================================*/
+(function (App) {
+  "use strict";
+
+  var api = App.api;
+
+  /* ---- state ------------------------------------------------------------ */
+
+  var Acct = {
+    mode: "guest",        // "guest" | "user"
+    profile: null,        // server profile row (or the local stand-in)
+    uploads: [],          // saved upload summaries
+    currentUploadId: null,
+    step: null,
+    busy: false,
+    pendingFiles: null,   // files captured during onboarding step 3
+    error: ""
+  };
+
+  var LOCAL_PROFILE_KEY = "wattwise.localProfile.v1";
+  var LOCAL_UPLOADS_KEY = "wattwise.localUploads.v1";
+
+  function el(id) { return document.getElementById(id); }
+  function esc(str) {
+    return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---- local (guest) persistence ---------------------------------------- */
+
+  function localGet(key, fallback) {
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function localSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+
+  /* ---- store: one interface, two backends ------------------------------- */
+
+  var store = {
+    isUser: function () { return Acct.mode === "user"; },
+
+    getProfile: function () {
+      if (store.isUser()) return api.getProfile();
+      return Promise.resolve(localGet(LOCAL_PROFILE_KEY, null));
+    },
+
+    saveProfile: function (patch) {
+      if (store.isUser()) {
+        return api.upsertProfile(patch).then(function (p) { Acct.profile = p; return p; });
+      }
+      var cur = localGet(LOCAL_PROFILE_KEY, {}) || {};
+      for (var k in patch) cur[k] = patch[k];
+      localSet(LOCAL_PROFILE_KEY, cur);
+      Acct.profile = cur;
+      return Promise.resolve(cur);
+    },
+
+    listUploads: function () {
+      if (store.isUser()) return api.listUploads();
+      return Promise.resolve(localGet(LOCAL_UPLOADS_KEY, []) || []);
+    },
+
+    getUpload: function (id) {
+      if (store.isUser()) return api.getUpload(id);
+      var all = localGet(LOCAL_UPLOADS_KEY, []) || [];
+      for (var i = 0; i < all.length; i++) if (all[i].id === id) return Promise.resolve(all[i]);
+      return Promise.resolve(null);
+    },
+
+    createUpload: function (row) {
+      if (store.isUser()) return api.createUpload(row);
+      var all = localGet(LOCAL_UPLOADS_KEY, []) || [];
+      row.id = "local-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
+      row.created_at = new Date().toISOString();
+      all.unshift(row);
+      // Guest storage is a browser quota, not a database — keep it bounded.
+      while (all.length > 12) all.pop();
+      localSet(LOCAL_UPLOADS_KEY, all);
+      return Promise.resolve(row);
+    },
+
+    updateUpload: function (id, patch) {
+      if (store.isUser()) return api.updateUpload(id, patch);
+      var all = localGet(LOCAL_UPLOADS_KEY, []) || [];
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].id === id) { for (var k in patch) all[i][k] = patch[k]; localSet(LOCAL_UPLOADS_KEY, all); return Promise.resolve(all[i]); }
+      }
+      return Promise.resolve(null);
+    },
+
+    deleteUpload: function (id) {
+      if (store.isUser()) return api.deleteUpload(id);
+      var all = (localGet(LOCAL_UPLOADS_KEY, []) || []).filter(function (u) { return u.id !== id; });
+      localSet(LOCAL_UPLOADS_KEY, all);
+      return Promise.resolve();
+    },
+
+    saveAnnotation: function (uploadId, dateKey, patch) {
+      if (store.isUser() && uploadId && String(uploadId).indexOf("local-") !== 0) {
+        return api.saveAnnotation(uploadId, dateKey, patch).catch(function () {});
+      }
+      return Promise.resolve();
+    },
+
+    listAnnotations: function (uploadId) {
+      if (store.isUser() && uploadId && String(uploadId).indexOf("local-") !== 0) {
+        return api.listAnnotations(uploadId).catch(function () { return []; });
+      }
+      return Promise.resolve([]);
+    },
+
+    saveAnswer: function (fuel, questionId, value) {
+      if (store.isUser()) return api.saveAnswer(fuel, questionId, value).catch(function () {});
+      return Promise.resolve();
+    },
+
+    listAnswers: function () {
+      if (store.isUser()) return api.listAnswers().catch(function () { return []; });
+      return Promise.resolve([]);
+    }
+  };
+
+  /* ---- onboarding step machine ------------------------------------------ */
+
+  var STEP_LABELS = ["Account", "Your home", "Upload", "Billing"];
+
+  function show(step) {
+    Acct.step = step;
+    Acct.error = "";
+    render();
+    el("onboard").hidden = false;
+  }
+  function hide() { el("onboard").hidden = true; }
+
+  function setError(msg) {
+    Acct.error = msg || "";
+    var e = el("ob-error");
+    e.textContent = msg || "";
+    e.hidden = !msg;
+  }
+
+  function setBusy(b) {
+    Acct.busy = b;
+    var actions = el("ob-actions");
+    if (!actions) return;
+    actions.querySelectorAll("button").forEach(function (btn) { btn.disabled = b; });
+  }
+
+  function stepIndex() {
+    return { account: 0, home: 1, upload: 2, billing: 3 }[Acct.step];
+  }
+
+  function renderSteps() {
+    var idx = stepIndex();
+    var box = el("ob-steps");
+    if (idx == null) { box.innerHTML = ""; return; }
+    box.innerHTML = STEP_LABELS.map(function (label, i) {
+      var cls = i < idx ? "done" : (i === idx ? "active" : "");
+      return "<span class='ob-step " + cls + "'><i></i>" + label + "</span>";
+    }).join("");
+  }
+
+  /* ---- step renderers ---------------------------------------------------- */
+
+  function renderAccountStep() {
+    var canAuth = api.configured();
+    el("ob-title").textContent = "Welcome to Wattwise";
+    el("ob-lede").textContent = canAuth
+      ? "Create an account to keep every upload, or explore first and sign up later."
+      : "Accounts aren't configured for this deployment — your data is saved in this browser instead.";
+
+    el("ob-body").innerHTML = canAuth
+      ? "<div class='ob-tabs'>" +
+          "<button class='ob-tab active' data-authmode='signup'>Create account</button>" +
+          "<button class='ob-tab' data-authmode='signin'>Sign in</button>" +
+        "</div>" +
+        "<div class='ob-fields'>" +
+          "<label class='field ob-name'><span class='field-label'>Your name</span>" +
+            "<input id='ob-name' class='input' type='text' autocomplete='name' placeholder='Alex' /></label>" +
+          "<label class='field'><span class='field-label'>Email</span>" +
+            "<input id='ob-email' class='input' type='email' autocomplete='email' placeholder='you@example.com' /></label>" +
+          "<label class='field'><span class='field-label'>Password</span>" +
+            "<input id='ob-pass' class='input' type='password' autocomplete='new-password' placeholder='At least 8 characters' /></label>" +
+        "</div>" +
+        "<div class='ob-privacy'>🔒 Your usage data is stored in your own private account and is only ever visible to you.</div>"
+      : "<div class='ob-privacy'>🔒 Everything stays in this browser.</div>";
+
+    el("ob-actions").innerHTML = canAuth
+      ? "<button class='btn btn-ghost' data-act='guest'>Explore without an account</button>" +
+        "<button class='btn btn-primary' data-act='auth'>Create account</button>"
+      : "<button class='btn btn-primary' data-act='guest'>Get started</button>";
+
+    var authMode = "signup";
+    el("ob-body").querySelectorAll("[data-authmode]").forEach(function (t) {
+      t.onclick = function () {
+        authMode = t.dataset.authmode;
+        el("ob-body").querySelectorAll(".ob-tab").forEach(function (x) { x.classList.remove("active"); });
+        t.classList.add("active");
+        el("ob-body").querySelector(".ob-name").style.display = authMode === "signup" ? "" : "none";
+        el("ob-pass").setAttribute("autocomplete", authMode === "signup" ? "new-password" : "current-password");
+        var btn = el("ob-actions").querySelector("[data-act='auth']");
+        if (btn) btn.textContent = authMode === "signup" ? "Create account" : "Sign in";
+        setError("");
+      };
+    });
+
+    wireActions({
+      guest: function () {
+        Acct.mode = "guest";
+        store.getProfile().then(function (p) {
+          Acct.profile = p || {};
+          show(p && p.zip ? "upload" : "home");
+        });
+      },
+      auth: function () {
+        var email = (el("ob-email").value || "").trim();
+        var pass = el("ob-pass").value || "";
+        var name = (el("ob-name") && el("ob-name").value || "").trim();
+        if (!email || !pass) { setError("Enter your email and password to continue."); return; }
+        if (authMode === "signup" && pass.length < 8) {
+          setError("Use at least 8 characters for your password."); return;
+        }
+        setBusy(true); setError("");
+        var p = authMode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
+        p.then(function (res) {
+          setBusy(false);
+          if (authMode === "signup" && res && res.needsConfirmation) {
+            renderConfirmNotice(email);
+            return;
+          }
+          afterSignIn();
+        }).catch(function (e) {
+          setBusy(false);
+          setError(friendlyAuthError(e, authMode));
+        });
+      }
+    });
+  }
+
+  function friendlyAuthError(e, mode) {
+    var msg = (e && e.message) || "";
+    if (/invalid login credentials/i.test(msg)) return "That email and password don't match an account.";
+    if (/already registered|already been registered/i.test(msg)) return "That email already has an account — switch to Sign in.";
+    if (/email address .* is invalid|email_address_invalid/i.test(msg)) return "That email address isn't accepted. Try another.";
+    if (/password/i.test(msg) && /length|short|6|8/i.test(msg)) return "That password is too short.";
+    if (/not confirmed|email not confirmed/i.test(msg)) return "Confirm your email first — check your inbox for the link.";
+    if (/reach the server/i.test(msg)) return msg;
+    return msg || (mode === "signup" ? "Could not create the account." : "Could not sign in.");
+  }
+
+  function renderConfirmNotice(email) {
+    el("ob-title").textContent = "Confirm your email";
+    el("ob-lede").textContent = "";
+    el("ob-body").innerHTML =
+      "<div class='ob-notice'>We sent a confirmation link to <b>" + esc(email) + "</b>. " +
+      "Click it, then come back and sign in.</div>" +
+      "<div class='ob-privacy'>You can keep exploring in the meantime — nothing is lost.</div>";
+    el("ob-actions").innerHTML =
+      "<button class='btn btn-ghost' data-act='guest'>Explore meanwhile</button>" +
+      "<button class='btn btn-primary' data-act='back'>Back to sign in</button>";
+    wireActions({
+      guest: function () {
+        Acct.mode = "guest";
+        store.getProfile().then(function (p) { Acct.profile = p || {}; show(p && p.zip ? "upload" : "home"); });
+      },
+      back: function () { show("account"); }
+    });
+  }
+
+  var HOME_FIELDS = [
+    { key: "ac_type", label: "Air conditioning", type: "select",
+      options: [["", "Select…"], ["central", "Central AC"], ["heatpump", "Heat pump"],
+                ["window", "Window / portable"], ["none", "No AC"]] },
+    { key: "occupancy", label: "Typical weekday", type: "select",
+      options: [["", "Select…"], ["home", "Someone home all day"], ["away", "Away 9–5"], ["varies", "Varies"]] },
+    { key: "home_type", label: "Home type", type: "select",
+      options: [["", "Select…"], ["house", "House"], ["townhouse", "Townhouse"],
+                ["apartment", "Apartment / condo"]] }
+  ];
+  var HOME_CHECKS = [
+    { key: "has_ev", label: "🚗 Electric vehicle" },
+    { key: "has_pool", label: "🏊 Pool / spa pump" },
+    { key: "has_electric_dryer", label: "🧺 Electric dryer" }
+  ];
+
+  function renderHomeStep() {
+    var p = Acct.profile || {};
+    el("ob-title").textContent = "Tell us about your home";
+    el("ob-lede").textContent =
+      "Your ZIP unlocks the local forecast and your AC schedule. The rest is optional — each answer makes the savings advice more specific.";
+    el("ob-body").innerHTML =
+      "<div class='ob-fields'>" +
+        "<label class='field'><span class='field-label'>ZIP code</span>" +
+          "<input id='ob-zip' class='input' type='text' inputmode='numeric' maxlength='5' " +
+          "placeholder='95124' value='" + esc(p.zip || "") + "' /></label>" +
+        HOME_FIELDS.map(function (f) {
+          return "<label class='field'><span class='field-label'>" + f.label + "</span>" +
+            "<select class='input' data-hk='" + f.key + "'>" +
+            f.options.map(function (o) {
+              return "<option value='" + o[0] + "'" + (p[f.key] === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
+            }).join("") + "</select></label>";
+        }).join("") +
+      "</div>" +
+      "<div class='ob-checks'>" +
+        HOME_CHECKS.map(function (c) {
+          return "<label class='ctx-check'><input type='checkbox' data-hk='" + c.key + "'" +
+            (p[c.key] ? " checked" : "") + " /> <span>" + c.label + "</span></label>";
+        }).join("") +
+      "</div>";
+    el("ob-actions").innerHTML =
+      "<button class='btn btn-ghost' data-act='skip'>Skip for now</button>" +
+      "<button class='btn btn-primary' data-act='save'>Continue</button>";
+
+    function collect() {
+      var patch = { zip: (el("ob-zip").value || "").trim() };
+      el("ob-body").querySelectorAll("[data-hk]").forEach(function (n) {
+        patch[n.dataset.hk] = n.type === "checkbox" ? n.checked : n.value;
+      });
+      return patch;
+    }
+
+    wireActions({
+      skip: function () { show("upload"); },
+      save: function () {
+        var patch = collect();
+        if (patch.zip && !/^\d{5}$/.test(patch.zip)) {
+          setError("A ZIP code is five digits — or leave it blank and add it later."); return;
+        }
+        setBusy(true); setError("");
+        store.saveProfile(patch).then(function () {
+          setBusy(false); show("upload");
+        }).catch(function (e) {
+          setBusy(false); setError((e && e.message) || "Could not save your details.");
+        });
+      }
+    });
+  }
+
+  function renderUploadStep() {
+    el("ob-title").textContent = "Add your PG&E usage file";
+    el("ob-lede").textContent =
+      "Download an interval CSV from pge.com (Energy Usage Details → Green Button), then drop it in. Electricity, gas, or both.";
+    el("ob-body").innerHTML =
+      "<div id='ob-drop' class='dropzone ob-drop' tabindex='0' role='button'>" +
+        "<input id='ob-file' type='file' accept='.csv,text/csv' multiple hidden />" +
+        "<div class='dropzone-text'><strong>Drop your CSV here</strong>" +
+        "<span>or <u>browse</u> your files</span></div>" +
+      "</div>" +
+      "<div id='ob-filelist' class='ob-filelist'></div>";
+    el("ob-actions").innerHTML =
+      "<button class='btn btn-ghost' data-act='sample'>Use sample data instead</button>" +
+      "<button class='btn btn-primary' data-act='next' disabled>Continue</button>";
+
+    var dz = el("ob-drop"), fi = el("ob-file");
+    function accept(files) {
+      var list = Array.prototype.slice.call(files).filter(function (f) {
+        return /\.csv$/i.test(f.name) || f.type === "text/csv";
+      });
+      if (!list.length) { setError("That doesn't look like a .csv file."); return; }
+      setError("");
+      Acct.pendingFiles = list;
+      el("ob-filelist").innerHTML = list.map(function (f) {
+        return "<div class='ob-file'>📄 " + esc(f.name) + "</div>";
+      }).join("");
+      var next = el("ob-actions").querySelector("[data-act='next']");
+      if (next) next.disabled = false;
+    }
+    dz.onclick = function () { fi.click(); };
+    dz.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fi.click(); } };
+    fi.onchange = function () { if (fi.files.length) accept(fi.files); };
+    ["dragenter", "dragover"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add("dragging"); });
+    });
+    ["dragleave", "drop"].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove("dragging"); });
+    });
+    dz.addEventListener("drop", function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length) accept(e.dataTransfer.files);
+    });
+
+    wireActions({
+      sample: function () { hide(); App.onboardingDone({ sample: true }); },
+      next: function () {
+        if (!Acct.pendingFiles) { setError("Choose a CSV file first."); return; }
+        hide();
+        App.onboardingDone({ files: Acct.pendingFiles });
+        Acct.pendingFiles = null;
+      }
+    });
+  }
+
+  function wireActions(handlers) {
+    el("ob-actions").querySelectorAll("[data-act]").forEach(function (b) {
+      b.onclick = function () {
+        if (Acct.busy) return;
+        var fn = handlers[b.dataset.act];
+        if (fn) fn();
+      };
+    });
+  }
+
+  function render() {
+    renderSteps();
+    setError(Acct.error);
+    if (Acct.step === "account") renderAccountStep();
+    else if (Acct.step === "home") renderHomeStep();
+    else if (Acct.step === "upload") renderUploadStep();
+    el("ob-close").hidden = !(Acct.step === "home" && Acct.profile && Acct.profile.zip);
+  }
+
+  /* ---- post-auth ---------------------------------------------------------- */
+
+  function afterSignIn() {
+    Acct.mode = "user";
+    return store.getProfile().then(function (p) {
+      Acct.profile = p || {};
+      renderAccountMenu();
+      return store.listUploads().then(function (ups) {
+        Acct.uploads = ups || [];
+        if (!Acct.profile.zip) { show("home"); return; }
+        if (!Acct.uploads.length) { show("upload"); return; }
+        hide();
+        App.onboardingDone({ resumeLatest: true });
+      });
+    }).catch(function (e) {
+      setError((e && e.message) || "Signed in, but couldn't load your account.");
+    });
+  }
+
+  /* ---- account menu ------------------------------------------------------- */
+
+  function renderAccountMenu() {
+    var menu = el("account-menu");
+    if (!menu) return;
+    var user = api.currentUser && api.currentUser();
+    if (Acct.mode === "user" && user) {
+      var name = (Acct.profile && Acct.profile.display_name) || (user.email || "").split("@")[0];
+      menu.hidden = false;
+      el("account-label").textContent = name || "Account";
+      el("account-avatar").textContent = (name || "?").charAt(0).toUpperCase();
+      el("account-email").textContent = user.email || "";
+      el("btn-signout").hidden = false;
+    } else {
+      menu.hidden = false;
+      el("account-label").textContent = "Guest";
+      el("account-avatar").textContent = "G";
+      el("account-email").textContent = "Saved in this browser only";
+      el("btn-signout").textContent = api.configured() ? "Create an account" : "";
+      el("btn-signout").hidden = !api.configured();
+    }
+  }
+
+  function wireAccountMenu() {
+    var btn = el("btn-account"), dd = el("account-dropdown");
+    if (!btn) return;
+    btn.onclick = function (e) {
+      e.stopPropagation();
+      dd.hidden = !dd.hidden;
+      btn.setAttribute("aria-expanded", String(!dd.hidden));
+    };
+    document.addEventListener("click", function () {
+      if (dd && !dd.hidden) { dd.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+    });
+    el("btn-edit-home").onclick = function () {
+      dd.hidden = true;
+      store.getProfile().then(function (p) { Acct.profile = p || {}; show("home"); });
+    };
+    el("btn-signout").onclick = function () {
+      dd.hidden = true;
+      if (Acct.mode !== "user") { show("account"); return; }
+      api.signOut().then(function () {
+        Acct.mode = "guest"; Acct.profile = null; Acct.uploads = []; Acct.currentUploadId = null;
+        location.reload();
+      });
+    };
+    el("ob-close").onclick = function () { hide(); };
+  }
+
+  /* ---- boot --------------------------------------------------------------- */
+
+  function boot() {
+    wireAccountMenu();
+    if (App.config && !App.config.redirectTo && location.origin && location.origin !== "null") {
+      App.config.redirectTo = location.origin + location.pathname;
+    }
+    if (!api.configured()) {
+      Acct.mode = "guest";
+      renderAccountMenu();
+      return store.getProfile().then(function (p) {
+        Acct.profile = p || {};
+        return store.listUploads().then(function (ups) {
+          Acct.uploads = ups || [];
+          return { signedIn: false, profile: Acct.profile, uploads: Acct.uploads };
+        });
+      });
+    }
+    return api.restore().then(function (s) {
+      if (s && api.signedIn()) {
+        Acct.mode = "user";
+        return store.getProfile().then(function (p) {
+          Acct.profile = p || {};
+          renderAccountMenu();
+          return store.listUploads().then(function (ups) {
+            Acct.uploads = ups || [];
+            return { signedIn: true, uploads: Acct.uploads, profile: Acct.profile };
+          });
+        });
+      }
+      Acct.mode = "guest";
+      renderAccountMenu();
+      return store.getProfile().then(function (p) {
+        Acct.profile = p || {};
+        return store.listUploads().then(function (ups) {
+          Acct.uploads = ups || [];
+          return { signedIn: false, profile: Acct.profile, uploads: Acct.uploads };
+        });
+      });
+    }).catch(function () {
+      Acct.mode = "guest";
+      renderAccountMenu();
+      return { signedIn: false };
+    });
+  }
+
+  App.account = {
+    state: Acct,
+    store: store,
+    boot: boot,
+    show: show,
+    hide: hide,
+    renderAccountMenu: renderAccountMenu,
+    esc: esc
+  };
+})(window.App = window.App || {});
+
+</script>
+  <script>
+/* ============================================================================
  * app.js — Orchestration, UI rendering, and persistence.
  *
  * Ties the modules together: ingest CSVs → analyze → (billing cycle prompt) →
@@ -3833,6 +4858,7 @@ body {
     weather: { electric: null, gas: null },
     weatherStatus: { electric: "", gas: "" },
     zipEntry: { electric: "", gas: "" },   // last ZIP the user typed, per fuel
+    uploadIds: { electric: null, gas: null },  // saved-upload row ids, per fuel
     tips: { electric: [], gas: [] },
     questions: { electric: null, gas: null },
     activeFuel: null,
@@ -3926,6 +4952,7 @@ body {
     acctSettings().profile = deriveProfile();
     applyQuestionAnnotation(q, value);
     saveSettings();
+    App.account.store.saveAnswer(State.activeFuel, q.id, value);
     regenTips();
     renderKpis(); renderInsights(); renderSavings(); renderTips(); renderAcPlan();
     renderEventFilters(); renderEvents(); renderContext();
@@ -4029,8 +5056,36 @@ body {
   function ingestText(text, fileName) {
     var dataset = App.parse.parse(text, fileName);
     var analysis = App.analyze.analyze(dataset);
-    State.data[dataset.fuel] = { dataset: dataset, analysis: analysis };
+    State.data[dataset.fuel] = { dataset: dataset, analysis: analysis, csv: text };
     return dataset.fuel;
+  }
+
+  /* Persist an ingested file so it shows up in "Your uploads" next visit. */
+  function persistUpload(fuel) {
+    var d = State.data[fuel];
+    if (!d || !d.csv) return Promise.resolve(null);
+    var a = d.analysis;
+    return App.account.store.createUpload({
+      file_name: d.dataset.fileName || (fuel + ".csv"),
+      fuel: fuel,
+      unit: a.unit,
+      granularity: a.granularity,
+      service_id: a.meta.service || null,
+      account_ref: a.meta.account || null,
+      period_start: dateToIso(a.dateRange.start),
+      period_end: dateToIso(a.dateRange.end),
+      row_count: d.dataset.rows.length,
+      total_usage: Math.round(a.totals.usage * 1000) / 1000,
+      total_cost: Math.round(a.totals.cost * 100) / 100,
+      csv: d.csv
+    }).then(function (row) {
+      if (row) State.uploadIds[fuel] = row.id;
+      return row;
+    }).catch(function (e) {
+      // A failed save must never block the analysis the user is looking at.
+      console.warn("Could not save upload:", e && e.message);
+      return null;
+    });
   }
 
   function ingestFiles(files) {
@@ -4046,7 +5101,12 @@ body {
     })).then(function (fuels) {
       var loaded = fuels.filter(Boolean);
       if (!loaded.length) return;
-      afterLoad(loaded[0]);
+      return Promise.all(loaded.map(persistUpload)).then(function () {
+        // A new export almost always covers a new period, so the cycle is
+        // confirmed on every upload rather than only the first.
+        afterLoad(loaded[0], { promptBilling: true });
+        refreshUploadsPanel();
+      });
     });
   }
 
@@ -4055,11 +5115,11 @@ body {
     try {
       ingestText(App.sampleData.electric, "electric-sample.csv");
       ingestText(App.sampleData.gas, "gas-sample.csv");
-      afterLoad("electric");
+      afterLoad("electric", { promptBilling: true, sample: true });
     } catch (e) { showError(e.message); }
   }
 
-  function afterLoad(firstFuel) {
+  function afterLoad(firstFuel, opts) {
     State.activeFuel = State.data.electric ? "electric" : (State.data.gas ? "gas" : firstFuel);
     State.questions = { electric: null, gas: null };  // regenerate for the new data
     var a = State.data[State.activeFuel].analysis;
@@ -4067,12 +5127,23 @@ body {
     document.getElementById("hero").hidden = true;
     document.getElementById("dashboard").hidden = false;
     document.getElementById("btn-new").hidden = false;
+    // The signed-in profile already knows the ZIP, so the weather panels and
+    // the AC playbook never have to ask for it again.
+    var prof = App.account.state.profile;
+    if (prof && prof.zip) {
+      State.zipEntry.electric = State.zipEntry.electric || prof.zip;
+      State.zipEntry.gas = State.zipEntry.gas || prof.zip;
+    }
     regenTips();
     render();
-    // Prompt for the billing cycle on upload, if not already set for this account.
-    var s = State.settings[State.accountKey];
-    if (!s || !s.billing) openBillingModal();
+    refreshUploadsPanel();
+    if (!opts || opts.promptBilling !== false) openBillingModal();
     window.scrollTo({ top: 0, behavior: "smooth" });
+    // With a ZIP on file, fetch the forecast straight away so the playbook is
+    // ready without another click.
+    if (prof && prof.zip && State.activeFuel === "electric" && !State.weather.electric) {
+      fetchWeather(prof.zip);
+    }
   }
 
   /* ---- error helpers ---------------------------------------------------- */
@@ -4444,6 +5515,84 @@ body {
     });
   }
 
+  /* ---- rendering: saved uploads ---------------------------------------- */
+
+  function refreshUploadsPanel() {
+    App.account.store.listUploads().then(function (ups) {
+      App.account.state.uploads = ups || [];
+      renderUploads();
+    }).catch(function () { renderUploads(); });
+  }
+
+  function renderUploads() {
+    var panel = document.getElementById("panel-uploads");
+    var box = document.getElementById("uploads-list");
+    if (!panel || !box) return;
+    var ups = App.account.state.uploads || [];
+    if (!ups.length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    var esc = App.account.esc;
+    var activeIds = [State.uploadIds.electric, State.uploadIds.gas];
+
+    box.innerHTML = ups.map(function (u) {
+      var isActive = activeIds.indexOf(u.id) !== -1;
+      var range = u.period_start && u.period_end
+        ? fmt.dateShort(isoToDate(u.period_start)) + " – " + fmt.dateMed(isoToDate(u.period_end))
+        : "";
+      var cycle = u.billing_start && u.billing_end
+        ? "<span class='up-cycle'>cycle " + fmt.dateShort(isoToDate(u.billing_start)) + "–" +
+          fmt.dateShort(isoToDate(u.billing_end)) + "</span>"
+        : "<span class='up-cycle up-nocycle'>no cycle set</span>";
+      return "<div class='upload-row" + (isActive ? " up-active" : "") + "' data-id='" + esc(u.id) + "'>" +
+        "<span class='up-fuel up-" + esc(u.fuel) + "'>" + (u.fuel === "gas" ? "🔥" : "⚡") + "</span>" +
+        "<div class='up-main'><div class='up-name'>" + esc(u.file_name || (u.fuel + ".csv")) +
+          (isActive ? " <span class='up-badge'>viewing</span>" : "") + "</div>" +
+          "<div class='up-meta'>" + esc(range) + " " + cycle + "</div></div>" +
+        "<div class='up-nums'>" + (u.total_usage != null ? fmt.num(u.total_usage) + " " + esc(u.unit || "") : "") +
+          "<span class='up-cost'>" + (u.total_cost != null ? fmt.usd(u.total_cost) : "") + "</span></div>" +
+        "<div class='up-actions'>" +
+          (isActive ? "" : "<button class='linkbtn up-open' data-id='" + esc(u.id) + "'>Open</button>") +
+          "<button class='linkbtn up-del' data-id='" + esc(u.id) + "' title='Delete'>Delete</button>" +
+        "</div></div>";
+    }).join("");
+
+    box.querySelectorAll(".up-open").forEach(function (b) {
+      b.onclick = function () { openSavedUpload(b.dataset.id); };
+    });
+    box.querySelectorAll(".up-del").forEach(function (b) {
+      b.onclick = function () {
+        var row = (App.account.state.uploads || []).filter(function (u) { return u.id === b.dataset.id; })[0];
+        if (!confirm("Delete " + ((row && row.file_name) || "this upload") + "? This can't be undone.")) return;
+        App.account.store.deleteUpload(b.dataset.id).then(function () {
+          ["electric", "gas"].forEach(function (f) {
+            if (State.uploadIds[f] === b.dataset.id) State.uploadIds[f] = null;
+          });
+          refreshUploadsPanel();
+        });
+      };
+    });
+  }
+
+  /* Re-open a previously saved file: fetch the stored CSV and re-analyze it. */
+  function openSavedUpload(id) {
+    App.account.store.getUpload(id).then(function (row) {
+      if (!row || !row.csv) { showError("That upload could not be loaded."); return; }
+      var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
+      State.uploadIds[fuel] = row.id;
+      State.questions[fuel] = null;
+      // A saved file already has its cycle confirmed, so don't re-prompt.
+      if (row.billing_start && row.billing_end) {
+        var acct = State.settings[State.accountKey] ||
+          (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
+        acct.billing = { startISO: row.billing_start, endISO: row.billing_end };
+        saveSettings();
+      }
+      afterLoad(fuel, { promptBilling: !(row.billing_start && row.billing_end) });
+    }).catch(function (e) {
+      showError((e && e.message) || "That upload could not be loaded.");
+    });
+  }
+
   /* ---- rendering: AC playbook ------------------------------------------ */
 
   /* Place names come from a third-party geocoder — never trust them as markup. */
@@ -4765,7 +5914,8 @@ body {
         var s2 = acctSettings(); var an = s2.annotations[State.activeFuel];
         an[sel.dataset.key] = an[sel.dataset.key] || {};
         an[sel.dataset.key].cause = sel.value;
-        saveSettings(); regenTips(); renderEvents(); renderTips();
+        saveSettings();
+        App.account.store.saveAnnotation(State.uploadIds[State.activeFuel], sel.dataset.key, an[sel.dataset.key]); regenTips(); renderEvents(); renderTips();
       };
       sel.onclick = function (ev) { ev.stopPropagation(); };
     });
@@ -4774,7 +5924,8 @@ body {
         var s2 = acctSettings(); var an = s2.annotations[State.activeFuel];
         an[cb.dataset.key] = an[cb.dataset.key] || {};
         an[cb.dataset.key].away = cb.checked;
-        saveSettings(); regenTips(); renderTips(); renderSavings(); renderContext(); renderEvents();
+        saveSettings();
+        App.account.store.saveAnnotation(State.uploadIds[State.activeFuel], cb.dataset.key, an[cb.dataset.key]); regenTips(); renderTips(); renderSavings(); renderContext(); renderEvents();
       };
       cb.onclick = function (ev) { ev.stopPropagation(); };
     });
@@ -4880,9 +6031,17 @@ body {
       (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
     s.billing = { startISO: startISO, endISO: endISO };
     saveSettings();
+    // Record the confirmed cycle against the files it describes.
+    ["electric", "gas"].forEach(function (f) {
+      if (State.uploadIds[f]) {
+        App.account.store.updateUpload(State.uploadIds[f],
+          { billing_start: startISO, billing_end: endISO }).catch(function () {});
+      }
+    });
     closeBillingModal();
     regenTips();
     render();
+    refreshUploadsPanel();
   }
 
   /* ---- theme ------------------------------------------------------------ */
@@ -4930,7 +6089,10 @@ body {
       hero.addEventListener(ev, function (e) { e.preventDefault(); });
     });
 
-    document.getElementById("btn-sample").onclick = loadSample;
+    document.getElementById("btn-sample").onclick = function () {
+      document.getElementById("hero").hidden = true;
+      loadSample();
+    };
     document.getElementById("btn-new").onclick = function () {
       document.getElementById("file-input").click();
     };
@@ -4959,7 +6121,55 @@ body {
     window.addEventListener("resize", debounce(function () {
       if (State.activeFuel) renderCharts();   // renderCharts() also redraws the AC chart
     }, 180));
+
+    document.getElementById("btn-upload-more").onclick = function () {
+      document.getElementById("file-input").click();
+    };
+
+    // Account state decides what the first screen is.
+    App.account.boot().then(function (res) {
+      if (res && res.uploads && res.uploads.length) {
+        // Returning visitor: reopen the most recent file of each fuel. Electric
+        // leads because it is the hourly, far richer dataset.
+        var ups = res.uploads;
+        var newestOf = function (fuel) {
+          for (var i = 0; i < ups.length; i++) if (ups[i].fuel === fuel) return ups[i];
+          return null;
+        };
+        var primary = newestOf("electric") || ups[0];
+        var secondary = newestOf(primary.fuel === "electric" ? "gas" : "electric");
+        openSavedUpload(primary.id);
+        if (secondary) setTimeout(function () { mergeSavedUpload(secondary.id); }, 0);
+        return;
+      }
+      App.account.show("account");
+    }).catch(function () { App.account.show("account"); });
   }
+
+  /* Load a second saved file (the other fuel) alongside the current one. */
+  function mergeSavedUpload(id) {
+    App.account.store.getUpload(id).then(function (row) {
+      if (!row || !row.csv) return;
+      var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
+      State.uploadIds[fuel] = row.id;
+      State.questions[fuel] = null;
+      renderHead();
+      renderUploads();
+    }).catch(function () {});
+  }
+
+  /* Called by the onboarding flow once the user has chosen their data. */
+  App.onboardingDone = function (choice) {
+    document.getElementById("hero").hidden = true;
+    if (choice && choice.sample) { loadSample(); return; }
+    if (choice && choice.files) { ingestFiles(choice.files); return; }
+    if (choice && choice.resumeLatest) {
+      var ups = App.account.state.uploads || [];
+      if (ups.length) openSavedUpload(ups[0].id);
+      return;
+    }
+    document.getElementById("hero").hidden = false;
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
