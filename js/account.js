@@ -158,11 +158,25 @@
     e.hidden = !msg;
   }
 
-  function setBusy(b) {
+  /* Disabling a button is not feedback. While a request is in flight the
+     primary action says what is happening, and restores its own label after —
+     a slow network otherwise looks like a dead button. */
+  function setBusy(b, pendingLabel) {
     Acct.busy = b;
     var actions = el("ob-actions");
     if (!actions) return;
     actions.querySelectorAll("button").forEach(function (btn) { btn.disabled = b; });
+    var primary = actions.querySelector(".btn-primary");
+    if (!primary) return;
+    if (b) {
+      if (primary.dataset.idleLabel == null) primary.dataset.idleLabel = primary.textContent;
+      primary.textContent = pendingLabel || "Working…";
+      primary.classList.add("is-busy");
+    } else if (primary.dataset.idleLabel != null) {
+      primary.textContent = primary.dataset.idleLabel;
+      delete primary.dataset.idleLabel;
+      primary.classList.remove("is-busy");
+    }
   }
 
   function stepIndex() {
@@ -239,7 +253,8 @@
         if (authMode === "signup" && pass.length < 8) {
           setError("Use at least 8 characters for your password."); return;
         }
-        setBusy(true); setError("");
+        setBusy(true, authMode === "signup" ? "Creating account…" : "Signing in…");
+        setError("");
         var p = authMode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
         p.then(function (res) {
           setBusy(false);
@@ -345,7 +360,7 @@
         if (patch.zip && !/^\d{5}$/.test(patch.zip)) {
           setError("A ZIP code is five digits — or leave it blank and add it later."); return;
         }
-        setBusy(true); setError("");
+        setBusy(true, "Saving…"); setError("");
         store.saveProfile(patch).then(function () {
           setBusy(false); show("upload");
         }).catch(function (e) {

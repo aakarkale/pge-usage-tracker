@@ -120,6 +120,11 @@ body {
 .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-ink)); color: #17130a; }
 .btn-primary:hover { filter: brightness(1.05); }
 .btn-primary[disabled] { opacity: .6; cursor: default; filter: none; }
+.btn.is-busy { position: relative; }
+.btn.is-busy::after { content: ""; width: 12px; height: 12px; margin-left: 2px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent; display: inline-block;
+  animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .btn-ghost { background: var(--panel-2); border-color: var(--border); color: var(--text-dim); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
 .btn-sm { padding: 6px 11px; font-size: 12.5px; }

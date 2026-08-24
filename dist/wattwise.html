@@ -129,6 +129,11 @@ body {
 .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-ink)); color: #17130a; }
 .btn-primary:hover { filter: brightness(1.05); }
 .btn-primary[disabled] { opacity: .6; cursor: default; filter: none; }
+.btn.is-busy { position: relative; }
+.btn.is-busy::after { content: ""; width: 12px; height: 12px; margin-left: 2px; border-radius: 50%;
+  border: 2px solid currentColor; border-top-color: transparent; display: inline-block;
+  animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .btn-ghost { background: var(--panel-2); border-color: var(--border); color: var(--text-dim); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); }
 .btn-sm { padding: 6px 11px; font-size: 12.5px; }
@@ -4442,11 +4447,25 @@ body {
     e.hidden = !msg;
   }
 
-  function setBusy(b) {
+  /* Disabling a button is not feedback. While a request is in flight the
+     primary action says what is happening, and restores its own label after —
+     a slow network otherwise looks like a dead button. */
+  function setBusy(b, pendingLabel) {
     Acct.busy = b;
     var actions = el("ob-actions");
     if (!actions) return;
     actions.querySelectorAll("button").forEach(function (btn) { btn.disabled = b; });
+    var primary = actions.querySelector(".btn-primary");
+    if (!primary) return;
+    if (b) {
+      if (primary.dataset.idleLabel == null) primary.dataset.idleLabel = primary.textContent;
+      primary.textContent = pendingLabel || "Working…";
+      primary.classList.add("is-busy");
+    } else if (primary.dataset.idleLabel != null) {
+      primary.textContent = primary.dataset.idleLabel;
+      delete primary.dataset.idleLabel;
+      primary.classList.remove("is-busy");
+    }
   }
 
   function stepIndex() {
@@ -4523,7 +4542,8 @@ body {
         if (authMode === "signup" && pass.length < 8) {
           setError("Use at least 8 characters for your password."); return;
         }
-        setBusy(true); setError("");
+        setBusy(true, authMode === "signup" ? "Creating account…" : "Signing in…");
+        setError("");
         var p = authMode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
         p.then(function (res) {
           setBusy(false);
@@ -4629,7 +4649,7 @@ body {
         if (patch.zip && !/^\d{5}$/.test(patch.zip)) {
           setError("A ZIP code is five digits — or leave it blank and add it later."); return;
         }
-        setBusy(true); setError("");
+        setBusy(true, "Saving…"); setError("");
         store.saveProfile(patch).then(function () {
           setBusy(false); show("upload");
         }).catch(function (e) {
