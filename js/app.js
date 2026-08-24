@@ -18,6 +18,7 @@
     weather: { electric: null, gas: null },
     weatherStatus: { electric: "", gas: "" },
     zipEntry: { electric: "", gas: "" },   // last ZIP the user typed, per fuel
+    uploadIds: { electric: null, gas: null },  // saved-upload row ids, per fuel
     tips: { electric: [], gas: [] },
     questions: { electric: null, gas: null },
     activeFuel: null,
@@ -111,6 +112,7 @@
     acctSettings().profile = deriveProfile();
     applyQuestionAnnotation(q, value);
     saveSettings();
+    App.account.store.saveAnswer(State.activeFuel, q.id, value);
     regenTips();
     renderKpis(); renderInsights(); renderSavings(); renderTips(); renderAcPlan();
     renderEventFilters(); renderEvents(); renderContext();
@@ -214,8 +216,36 @@
   function ingestText(text, fileName) {
     var dataset = App.parse.parse(text, fileName);
     var analysis = App.analyze.analyze(dataset);
-    State.data[dataset.fuel] = { dataset: dataset, analysis: analysis };
+    State.data[dataset.fuel] = { dataset: dataset, analysis: analysis, csv: text };
     return dataset.fuel;
+  }
+
+  /* Persist an ingested file so it shows up in "Your uploads" next visit. */
+  function persistUpload(fuel) {
+    var d = State.data[fuel];
+    if (!d || !d.csv) return Promise.resolve(null);
+    var a = d.analysis;
+    return App.account.store.createUpload({
+      file_name: d.dataset.fileName || (fuel + ".csv"),
+      fuel: fuel,
+      unit: a.unit,
+      granularity: a.granularity,
+      service_id: a.meta.service || null,
+      account_ref: a.meta.account || null,
+      period_start: dateToIso(a.dateRange.start),
+      period_end: dateToIso(a.dateRange.end),
+      row_count: d.dataset.rows.length,
+      total_usage: Math.round(a.totals.usage * 1000) / 1000,
+      total_cost: Math.round(a.totals.cost * 100) / 100,
+      csv: d.csv
+    }).then(function (row) {
+      if (row) State.uploadIds[fuel] = row.id;
+      return row;
+    }).catch(function (e) {
+      // A failed save must never block the analysis the user is looking at.
+      console.warn("Could not save upload:", e && e.message);
+      return null;
+    });
   }
 
   function ingestFiles(files) {
@@ -231,7 +261,12 @@
     })).then(function (fuels) {
       var loaded = fuels.filter(Boolean);
       if (!loaded.length) return;
-      afterLoad(loaded[0]);
+      return Promise.all(loaded.map(persistUpload)).then(function () {
+        // A new export almost always covers a new period, so the cycle is
+        // confirmed on every upload rather than only the first.
+        afterLoad(loaded[0], { promptBilling: true });
+        refreshUploadsPanel();
+      });
     });
   }
 
@@ -240,11 +275,11 @@
     try {
       ingestText(App.sampleData.electric, "electric-sample.csv");
       ingestText(App.sampleData.gas, "gas-sample.csv");
-      afterLoad("electric");
+      afterLoad("electric", { promptBilling: true, sample: true });
     } catch (e) { showError(e.message); }
   }
 
-  function afterLoad(firstFuel) {
+  function afterLoad(firstFuel, opts) {
     State.activeFuel = State.data.electric ? "electric" : (State.data.gas ? "gas" : firstFuel);
     State.questions = { electric: null, gas: null };  // regenerate for the new data
     var a = State.data[State.activeFuel].analysis;
@@ -252,12 +287,23 @@
     document.getElementById("hero").hidden = true;
     document.getElementById("dashboard").hidden = false;
     document.getElementById("btn-new").hidden = false;
+    // The signed-in profile already knows the ZIP, so the weather panels and
+    // the AC playbook never have to ask for it again.
+    var prof = App.account.state.profile;
+    if (prof && prof.zip) {
+      State.zipEntry.electric = State.zipEntry.electric || prof.zip;
+      State.zipEntry.gas = State.zipEntry.gas || prof.zip;
+    }
     regenTips();
     render();
-    // Prompt for the billing cycle on upload, if not already set for this account.
-    var s = State.settings[State.accountKey];
-    if (!s || !s.billing) openBillingModal();
+    refreshUploadsPanel();
+    if (!opts || opts.promptBilling !== false) openBillingModal();
     window.scrollTo({ top: 0, behavior: "smooth" });
+    // With a ZIP on file, fetch the forecast straight away so the playbook is
+    // ready without another click.
+    if (prof && prof.zip && State.activeFuel === "electric" && !State.weather.electric) {
+      fetchWeather(prof.zip);
+    }
   }
 
   /* ---- error helpers ---------------------------------------------------- */
@@ -629,6 +675,84 @@
     });
   }
 
+  /* ---- rendering: saved uploads ---------------------------------------- */
+
+  function refreshUploadsPanel() {
+    App.account.store.listUploads().then(function (ups) {
+      App.account.state.uploads = ups || [];
+      renderUploads();
+    }).catch(function () { renderUploads(); });
+  }
+
+  function renderUploads() {
+    var panel = document.getElementById("panel-uploads");
+    var box = document.getElementById("uploads-list");
+    if (!panel || !box) return;
+    var ups = App.account.state.uploads || [];
+    if (!ups.length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    var esc = App.account.esc;
+    var activeIds = [State.uploadIds.electric, State.uploadIds.gas];
+
+    box.innerHTML = ups.map(function (u) {
+      var isActive = activeIds.indexOf(u.id) !== -1;
+      var range = u.period_start && u.period_end
+        ? fmt.dateShort(isoToDate(u.period_start)) + " – " + fmt.dateMed(isoToDate(u.period_end))
+        : "";
+      var cycle = u.billing_start && u.billing_end
+        ? "<span class='up-cycle'>cycle " + fmt.dateShort(isoToDate(u.billing_start)) + "–" +
+          fmt.dateShort(isoToDate(u.billing_end)) + "</span>"
+        : "<span class='up-cycle up-nocycle'>no cycle set</span>";
+      return "<div class='upload-row" + (isActive ? " up-active" : "") + "' data-id='" + esc(u.id) + "'>" +
+        "<span class='up-fuel up-" + esc(u.fuel) + "'>" + (u.fuel === "gas" ? "🔥" : "⚡") + "</span>" +
+        "<div class='up-main'><div class='up-name'>" + esc(u.file_name || (u.fuel + ".csv")) +
+          (isActive ? " <span class='up-badge'>viewing</span>" : "") + "</div>" +
+          "<div class='up-meta'>" + esc(range) + " " + cycle + "</div></div>" +
+        "<div class='up-nums'>" + (u.total_usage != null ? fmt.num(u.total_usage) + " " + esc(u.unit || "") : "") +
+          "<span class='up-cost'>" + (u.total_cost != null ? fmt.usd(u.total_cost) : "") + "</span></div>" +
+        "<div class='up-actions'>" +
+          (isActive ? "" : "<button class='linkbtn up-open' data-id='" + esc(u.id) + "'>Open</button>") +
+          "<button class='linkbtn up-del' data-id='" + esc(u.id) + "' title='Delete'>Delete</button>" +
+        "</div></div>";
+    }).join("");
+
+    box.querySelectorAll(".up-open").forEach(function (b) {
+      b.onclick = function () { openSavedUpload(b.dataset.id); };
+    });
+    box.querySelectorAll(".up-del").forEach(function (b) {
+      b.onclick = function () {
+        var row = (App.account.state.uploads || []).filter(function (u) { return u.id === b.dataset.id; })[0];
+        if (!confirm("Delete " + ((row && row.file_name) || "this upload") + "? This can't be undone.")) return;
+        App.account.store.deleteUpload(b.dataset.id).then(function () {
+          ["electric", "gas"].forEach(function (f) {
+            if (State.uploadIds[f] === b.dataset.id) State.uploadIds[f] = null;
+          });
+          refreshUploadsPanel();
+        });
+      };
+    });
+  }
+
+  /* Re-open a previously saved file: fetch the stored CSV and re-analyze it. */
+  function openSavedUpload(id) {
+    App.account.store.getUpload(id).then(function (row) {
+      if (!row || !row.csv) { showError("That upload could not be loaded."); return; }
+      var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
+      State.uploadIds[fuel] = row.id;
+      State.questions[fuel] = null;
+      // A saved file already has its cycle confirmed, so don't re-prompt.
+      if (row.billing_start && row.billing_end) {
+        var acct = State.settings[State.accountKey] ||
+          (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
+        acct.billing = { startISO: row.billing_start, endISO: row.billing_end };
+        saveSettings();
+      }
+      afterLoad(fuel, { promptBilling: !(row.billing_start && row.billing_end) });
+    }).catch(function (e) {
+      showError((e && e.message) || "That upload could not be loaded.");
+    });
+  }
+
   /* ---- rendering: AC playbook ------------------------------------------ */
 
   /* Place names come from a third-party geocoder — never trust them as markup. */
@@ -950,7 +1074,8 @@
         var s2 = acctSettings(); var an = s2.annotations[State.activeFuel];
         an[sel.dataset.key] = an[sel.dataset.key] || {};
         an[sel.dataset.key].cause = sel.value;
-        saveSettings(); regenTips(); renderEvents(); renderTips();
+        saveSettings();
+        App.account.store.saveAnnotation(State.uploadIds[State.activeFuel], sel.dataset.key, an[sel.dataset.key]); regenTips(); renderEvents(); renderTips();
       };
       sel.onclick = function (ev) { ev.stopPropagation(); };
     });
@@ -959,7 +1084,8 @@
         var s2 = acctSettings(); var an = s2.annotations[State.activeFuel];
         an[cb.dataset.key] = an[cb.dataset.key] || {};
         an[cb.dataset.key].away = cb.checked;
-        saveSettings(); regenTips(); renderTips(); renderSavings(); renderContext(); renderEvents();
+        saveSettings();
+        App.account.store.saveAnnotation(State.uploadIds[State.activeFuel], cb.dataset.key, an[cb.dataset.key]); regenTips(); renderTips(); renderSavings(); renderContext(); renderEvents();
       };
       cb.onclick = function (ev) { ev.stopPropagation(); };
     });
@@ -1065,9 +1191,17 @@
       (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
     s.billing = { startISO: startISO, endISO: endISO };
     saveSettings();
+    // Record the confirmed cycle against the files it describes.
+    ["electric", "gas"].forEach(function (f) {
+      if (State.uploadIds[f]) {
+        App.account.store.updateUpload(State.uploadIds[f],
+          { billing_start: startISO, billing_end: endISO }).catch(function () {});
+      }
+    });
     closeBillingModal();
     regenTips();
     render();
+    refreshUploadsPanel();
   }
 
   /* ---- theme ------------------------------------------------------------ */
@@ -1115,7 +1249,10 @@
       hero.addEventListener(ev, function (e) { e.preventDefault(); });
     });
 
-    document.getElementById("btn-sample").onclick = loadSample;
+    document.getElementById("btn-sample").onclick = function () {
+      document.getElementById("hero").hidden = true;
+      loadSample();
+    };
     document.getElementById("btn-new").onclick = function () {
       document.getElementById("file-input").click();
     };
@@ -1144,7 +1281,55 @@
     window.addEventListener("resize", debounce(function () {
       if (State.activeFuel) renderCharts();   // renderCharts() also redraws the AC chart
     }, 180));
+
+    document.getElementById("btn-upload-more").onclick = function () {
+      document.getElementById("file-input").click();
+    };
+
+    // Account state decides what the first screen is.
+    App.account.boot().then(function (res) {
+      if (res && res.uploads && res.uploads.length) {
+        // Returning visitor: reopen the most recent file of each fuel. Electric
+        // leads because it is the hourly, far richer dataset.
+        var ups = res.uploads;
+        var newestOf = function (fuel) {
+          for (var i = 0; i < ups.length; i++) if (ups[i].fuel === fuel) return ups[i];
+          return null;
+        };
+        var primary = newestOf("electric") || ups[0];
+        var secondary = newestOf(primary.fuel === "electric" ? "gas" : "electric");
+        openSavedUpload(primary.id);
+        if (secondary) setTimeout(function () { mergeSavedUpload(secondary.id); }, 0);
+        return;
+      }
+      App.account.show("account");
+    }).catch(function () { App.account.show("account"); });
   }
+
+  /* Load a second saved file (the other fuel) alongside the current one. */
+  function mergeSavedUpload(id) {
+    App.account.store.getUpload(id).then(function (row) {
+      if (!row || !row.csv) return;
+      var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
+      State.uploadIds[fuel] = row.id;
+      State.questions[fuel] = null;
+      renderHead();
+      renderUploads();
+    }).catch(function () {});
+  }
+
+  /* Called by the onboarding flow once the user has chosen their data. */
+  App.onboardingDone = function (choice) {
+    document.getElementById("hero").hidden = true;
+    if (choice && choice.sample) { loadSample(); return; }
+    if (choice && choice.files) { ingestFiles(choice.files); return; }
+    if (choice && choice.resumeLatest) {
+      var ups = App.account.state.uploads || [];
+      if (ups.length) openSavedUpload(ups[0].id);
+      return;
+    }
+    document.getElementById("hero").hidden = false;
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

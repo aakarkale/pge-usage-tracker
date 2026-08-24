@@ -23,7 +23,17 @@
       </div>
     </div>
     <div class="topbar-actions">
-      <button id="btn-new" class="btn btn-ghost" hidden>＋ Add / replace files</button>
+      <button id="btn-new" class="btn btn-ghost" hidden>＋ Upload CSV</button>
+      <div id="account-menu" class="account-menu" hidden>
+        <button id="btn-account" class="btn btn-ghost" aria-haspopup="true" aria-expanded="false">
+          <span id="account-avatar" class="avatar"></span><span id="account-label">Account</span>
+        </button>
+        <div id="account-dropdown" class="dropdown" hidden>
+          <div id="account-email" class="dropdown-email"></div>
+          <button id="btn-edit-home" class="dropdown-item">🏠 Home &amp; ZIP settings</button>
+          <button id="btn-signout" class="dropdown-item">Sign out</button>
+        </div>
+      </div>
       <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark" aria-label="Toggle theme">
         <span class="theme-icon">◑</span>
       </button>
@@ -88,6 +98,18 @@
       </div>
 
       <div id="kpis" class="kpi-grid"></div>
+
+      <!-- Saved uploads -->
+      <div id="panel-uploads" class="panel" hidden>
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">📂 Your uploads</h2>
+            <span class="panel-sub">Every file you've analyzed, saved to your account</span>
+          </div>
+          <button id="btn-upload-more" class="btn btn-ghost btn-sm">＋ Upload another</button>
+        </div>
+        <div id="uploads-list" class="uploads-list"></div>
+      </div>
 
       <!-- Billing cycle -->
       <div id="panel-billing" class="panel">
@@ -234,6 +256,26 @@
     <span class="footer-dim">Not affiliated with or endorsed by PG&amp;E. Estimates are indicative, not billing-accurate.</span>
   </footer>
 
+  <!-- ===================== Onboarding / auth ===================== -->
+  <div id="onboard" class="onboard" hidden>
+    <div class="onboard-card" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+      <div class="onboard-head">
+        <span class="brand-mark ob-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+            <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/>
+          </svg>
+        </span>
+        <div id="ob-steps" class="ob-steps" aria-hidden="true"></div>
+        <button id="ob-close" class="modal-close" aria-label="Close" hidden>✕</button>
+      </div>
+      <h2 id="ob-title" class="onboard-title"></h2>
+      <p id="ob-lede" class="onboard-lede"></p>
+      <div id="ob-body" class="onboard-body"></div>
+      <p id="ob-error" class="ob-error" hidden></p>
+      <div id="ob-actions" class="onboard-actions"></div>
+    </div>
+  </div>
+
   <!-- ===================== Billing cycle modal ===================== -->
   <div id="billing-modal" class="modal-backdrop" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="billing-modal-title">
@@ -263,6 +305,7 @@
   </div>
 
   <!-- Load order matters: utilities → engine → charts → app -->
+  <script src="js/config.js"></script>
   <script src="js/sample-data.js"></script>
   <script src="js/format.js"></script>
   <script src="js/stats.js"></script>
@@ -273,6 +316,8 @@
   <script src="js/weather.js"></script>
   <script src="js/acplan.js"></script>
   <script src="js/charts.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/account.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

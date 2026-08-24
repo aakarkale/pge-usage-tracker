@@ -2,11 +2,13 @@
 
 Turn your PG&E **gas** and **electricity** interval exports into a beautiful, interactive
 dashboard — with automatic spike/dip detection, an hourly usage heatmap, weather correlation,
-bill projection, and personalized, dollar-quantified saving tips.
+bill projection, a forecast-driven AC schedule, and personalized, dollar-quantified saving tips.
 
-**Everything runs in your browser.** Your usage CSVs are parsed with JavaScript in the page and
-are never uploaded anywhere. (The one optional exception — local weather — is described below and
-only sends your ZIP + date range, never your usage.)
+**Live:** https://pge-usage-tracker.vercel.app
+
+Create an account to keep every upload in one place, or explore as a guest — everything works
+either way. All analysis happens **in your browser**; the CSV is only stored if you choose to save
+it to your own private account.
 
 > Not affiliated with or endorsed by PG&E. Cost figures are indicative, not billing-accurate.
 
@@ -52,6 +54,21 @@ only sends your ZIP + date range, never your usage.)
 
 ---
 
+## 👤 Accounts &amp; onboarding
+
+A short four-step flow gets you from zero to a dashboard:
+
+| Step | What it asks | Why |
+|---|---|---|
+| **1. Account** | Sign up, sign in, or explore as a guest | Guests are a first-class path — nothing is gated |
+| **2. Your home** | **ZIP** (asked once), AC type, occupancy, EV / pool / dryer | The ZIP unlocks the forecast and your AC schedule; the rest sharpens the tips |
+| **3. Upload** | Your PG&E interval CSV | Electric, gas, or both |
+| **4. Billing** | Cycle start &amp; end dates | **Confirmed on every upload**, since a new export usually covers a new period |
+
+Signed in, each upload is saved to **Your uploads** — reopen any past file, and its billing cycle,
+day annotations and question answers come back with it. As a guest the same data is kept in
+`localStorage` for that browser.
+
 ## 🚀 Run it
 
 It's a static site with **no build step and no dependencies**. Any of these work:
@@ -80,11 +97,16 @@ range and **CSV (interval)**. You'll get one file per service (one for electric,
 
 | Data | Where it goes |
 |------|----------------|
-| Your usage CSVs | Parsed in the browser tab. Never leave your device. |
-| Your settings (billing cycle, household profile, day notes) | Saved in this browser's `localStorage`. Never leave your device. |
-| **Optional** weather lookup | Sends only your **ZIP** and **date range** to free, key-less services (zippopotam.us for geocoding, Open-Meteo for temperatures). Your usage is never included. |
+| Your usage CSVs — **guest mode** | Parsed in the browser tab and kept in `localStorage`. Never leave your device. |
+| Your usage CSVs — **signed in** | Stored in *your own* account row in Postgres, guarded by row-level security so only you can read it. Delete any upload at any time. |
+| **Optional** weather lookup | Sends only your **ZIP** and **date range** to free, key-less services (zippopotam.us, Open-Meteo). Your usage is never included. |
 
-If you never click "Add local weather," the app makes **zero network requests.**
+The Supabase URL and *publishable* key in `js/config.js` are meant to ship in client code — they
+identify the project and grant nothing on their own. Every table is protected by row-level security
+policies (`auth.uid() = user_id`), verified by testing that anonymous reads return empty and
+anonymous writes are rejected. No service-role key exists anywhere in this repo.
+
+Set `App.config.supabase.url` to `""` to build a fully local, account-free version.
 
 ---
 
@@ -121,6 +143,9 @@ js/
   acplan.js         Forecast-driven thermostat schedule (the AC playbook)
   questions.js      Data-derived diagnostic questions
   weather.js        Optional client-side weather enrichment (history + forecast)
+  config.js         Backend URL + publishable key
+  api.js            Auth + data access (GoTrue + PostgREST over plain fetch, no SDK)
+  account.js        Onboarding flow, account menu, saved-uploads library
   charts.js         Dependency-free SVG charts (heatmap, time series, load curve, …)
   app.js            Orchestration, rendering, persistence, interactions
   sample-data.js    Inlined anonymized sample CSVs (offline demo)
