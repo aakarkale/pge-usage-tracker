@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wattwise — Energy Usage Insights</title>
+  <meta name="description" content="Upload your PG&E gas &amp; electricity interval CSVs for an interactive dashboard with anomaly detection, hourly heatmaps, weather-aware tips, and bill projection — processed privately in your browser." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ===================== Top bar ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+          <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <span class="brand-name">Wattwise</span>
+        <span class="brand-sub">Energy Usage Insights</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-new" class="btn btn-ghost" hidden>＋ Add / replace files</button>
+      <button id="btn-theme" class="btn btn-icon" title="Toggle light / dark" aria-label="Toggle theme">
+        <span class="theme-icon">◑</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- ===================== Hero / upload ===================== -->
+    <section id="hero" class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">See where your energy — and money — actually goes.</h1>
+        <p class="hero-lede">
+          Drop in your PG&amp;E <strong>gas</strong> and <strong>electricity</strong> usage exports and
+          Wattwise turns them into an interactive dashboard: hourly heatmaps, spending breakdowns, weather-aware
+          tips, and an anomaly engine that flags the spikes, dips, and always-on loads worth your attention.
+        </p>
+
+        <div id="dropzone" class="dropzone" tabindex="0" role="button"
+             aria-label="Upload PG&E usage CSV files">
+          <input id="file-input" type="file" accept=".csv,text/csv" multiple hidden />
+          <div class="dropzone-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4M12 4l-4 4M12 4l4 4"/>
+              <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>
+            </svg>
+          </div>
+          <div class="dropzone-text">
+            <strong>Drag &amp; drop your CSV files here</strong>
+            <span>or <u>browse</u> — gas &amp; electricity, one or both</span>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <button id="btn-sample" class="btn btn-primary">▶ Try it with sample data</button>
+          <span class="privacy-pill" title="Your usage files are parsed with JavaScript in this tab and never uploaded.">
+            🔒 Your usage data never leaves your browser
+          </span>
+        </div>
+
+        <ul class="feature-row">
+          <li><span class="feat-ico">🔥</span> Gas &amp; electric side by side</li>
+          <li><span class="feat-ico">🌡️</span> Day × hour usage heatmap</li>
+          <li><span class="feat-ico">🔎</span> Automatic spike &amp; dip detection</li>
+          <li><span class="feat-ico">🧾</span> Bill projection &amp; savings tips</li>
+        </ul>
+
+        <p id="error-box" class="error-box" hidden></p>
+      </div>
+    </section>
+
+    <!-- ===================== Dashboard ===================== -->
+    <section id="dashboard" class="dashboard" hidden>
+      <div class="dash-head">
+        <div class="dash-account">
+          <div id="account-name" class="account-name"></div>
+          <div id="account-meta" class="account-meta"></div>
+        </div>
+        <div class="dash-controls">
+          <div id="fuel-tabs" class="fuel-tabs" role="tablist"></div>
+        </div>
+      </div>
+
+      <div id="kpis" class="kpi-grid"></div>
+
+      <!-- Billing cycle -->
+      <div id="panel-billing" class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🧾 Billing cycles</h2>
+            <span class="panel-sub">Usage grouped by your billing period, with a projection for the current cycle</span>
+          </div>
+          <button id="btn-edit-billing" class="btn btn-ghost btn-sm">Edit cycle dates</button>
+        </div>
+        <div id="billing-content" class="billing-content"></div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="panel panel-insights">
+          <div class="panel-head">
+            <h2 class="panel-title">💡 AI insights</h2>
+            <span class="panel-sub">Plain-English takeaways from your data</span>
+          </div>
+          <div id="insights" class="insights"></div>
+        </div>
+        <div class="panel panel-savings">
+          <div class="panel-head">
+            <h2 class="panel-title">💰 Savings at a glance</h2>
+          </div>
+          <div id="savings" class="savings"></div>
+        </div>
+      </div>
+
+      <!-- Personalized recommendations (hour / weather / context aware) -->
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">✅ Personalized recommendations</h2>
+            <span class="panel-sub">Hour-by-hour saving moves — sharper once you add weather and answer a few questions</span>
+          </div>
+        </div>
+        <div id="tips" class="tips"></div>
+      </div>
+
+      <!-- Diagnostic questions: asked automatically once the data is analyzed -->
+      <div id="panel-context" class="panel panel-questions">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🧠 Sharpen your tips — a few questions about your home</h2>
+            <span class="panel-sub">Wattwise spotted these patterns in your data but can't see what's behind them. Answer what you can and the recommendations above get more specific — every answer stays on your device.</span>
+          </div>
+        </div>
+        <div id="context-content" class="context-content"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Usage &amp; cost over time</h2>
+            <span class="panel-sub">Daily totals · dashed line = 7-day trend · dots = flagged events</span>
+          </div>
+          <div class="seg-toggle" id="metric-toggle" role="tablist">
+            <button data-metric="usage" class="seg active" role="tab">Usage</button>
+            <button data-metric="cost" class="seg" role="tab">Cost</button>
+          </div>
+        </div>
+        <div id="chart-timeseries" class="chart-holder"></div>
+      </div>
+
+      <div id="panel-heatmap" class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🌡️ Hourly usage heatmap</h2>
+            <span class="panel-sub">Each row is a day, each cell an hour — brighter is more. White outlines mark detected spikes.</span>
+          </div>
+        </div>
+        <div id="chart-heatmap" class="chart-holder"></div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="panel" id="panel-loadcurve">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Your daily load curve</h2>
+              <span class="panel-sub">Average usage by hour · shaded band = typical range</span>
+            </div>
+          </div>
+          <div id="chart-loadcurve" class="chart-holder"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">By day of week</h2>
+              <span class="panel-sub">Average daily usage · weekends highlighted</span>
+            </div>
+          </div>
+          <div id="chart-weekday" class="chart-holder"></div>
+        </div>
+      </div>
+
+      <div id="panel-peak" class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">⚡ Peak vs. off-peak</h2>
+            <span class="panel-sub">Time-of-use rate split detected automatically from your bill data</span>
+          </div>
+        </div>
+        <div id="peak-content" class="peak-content"></div>
+      </div>
+
+      <!-- Weather enrichment -->
+      <div id="panel-weather" class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🌦️ Weather &amp; your usage</h2>
+            <span class="panel-sub">Pull local hourly temperatures to see how much of your load is weather-driven</span>
+          </div>
+        </div>
+        <div id="weather-content" class="weather-content"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🔎 Event feed — spikes, dips &amp; anomalies</h2>
+            <span class="panel-sub">Ranked by significance. Click one to spotlight it on the charts, or tell us what caused it.</span>
+          </div>
+          <div id="event-filters" class="event-filters"></div>
+        </div>
+        <div id="events" class="events"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Wattwise · built for PG&amp;E "Green Button" interval exports · analysis runs entirely in your browser.</span>
+    <span class="footer-dim">Not affiliated with or endorsed by PG&amp;E. Estimates are indicative, not billing-accurate.</span>
+  </footer>
+
+  <!-- ===================== Billing cycle modal ===================== -->
+  <div id="billing-modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="billing-modal-title">
+      <button id="billing-close" class="modal-close" aria-label="Close">✕</button>
+      <h2 id="billing-modal-title" class="modal-title">🧾 When is your billing cycle?</h2>
+      <p class="modal-lede">
+        PG&amp;E bills on a roughly monthly cycle that usually doesn't start on the 1st. Enter the start and end
+        dates of one recent cycle (from any PG&amp;E bill) and Wattwise will align every chart and project your
+        current bill. You can skip this and set it later.
+      </p>
+      <div class="modal-fields">
+        <label class="field">
+          <span class="field-label">Cycle start date</span>
+          <input id="billing-start" type="date" class="input" />
+        </label>
+        <label class="field">
+          <span class="field-label">Cycle end date</span>
+          <input id="billing-end" type="date" class="input" />
+        </label>
+      </div>
+      <div id="billing-preview" class="billing-preview"></div>
+      <div class="modal-actions">
+        <button id="billing-skip" class="btn btn-ghost">Skip for now</button>
+        <button id="billing-save" class="btn btn-primary">Save billing cycle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load order matters: utilities → engine → charts → app -->
+  <script src="js/sample-data.js"></script>
+  <script src="js/format.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/parse.js"></script>
+  <script src="js/analyze.js"></script>
+  <script src="js/tips.js"></script>
+  <script src="js/questions.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
