@@ -632,8 +632,103 @@
     container.appendChild(svg);
   }
 
+  /* ---- forecast lines (high / low / setpoint) --------------------------- */
+  /*
+   * The story this chart tells: the vertical gap between the overnight-low
+   * line and your setpoint line is free cooling you can let into the house.
+   */
+  function forecastLines(container, opts) {
+    clear(container);
+    var days = opts.days || [];
+    if (days.length < 2) return;
+    var W = container.clientWidth || 600;
+    var H = opts.height || 250;
+    var m = { t: 16, r: 14, b: 44, l: 42 };
+    var iw = W - m.l - m.r, ih = H - m.t - m.b;
+
+    var all = [];
+    days.forEach(function (d) { all.push(d.tMax, d.tMin); });
+    all.push(opts.setpoint);
+    var vmin = Math.floor((Math.min.apply(null, all) - 8) / 10) * 10;
+    var vmax = Math.ceil((Math.max.apply(null, all) + 8) / 10) * 10;
+
+    function X(i) { return m.l + (i / (days.length - 1)) * iw; }
+    function Y(v) { return m.t + ih - ((v - vmin) / (vmax - vmin)) * ih; }
+
+    var svg = el("svg", { width: W, height: H, class: "chart-svg" });
+
+    niceTicks(vmin, vmax, 4).forEach(function (v) {
+      var y = Y(v);
+      svg.appendChild(el("line", { x1: m.l, y1: y, x2: m.l + iw, y2: y, class: "grid-line" }));
+      var lbl = el("text", { x: m.l - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
+      lbl.textContent = fmt.num(v, 0) + "°";
+      svg.appendChild(lbl);
+    });
+
+    // Shade the free-cooling gap between the setpoint and the overnight lows.
+    var gapD = "";
+    days.forEach(function (d, i) { gapD += (i === 0 ? "M " : " L ") + X(i) + " " + Y(opts.setpoint); });
+    for (var j = days.length - 1; j >= 0; j--) gapD += " L " + X(j) + " " + Y(days[j].tMin);
+    svg.appendChild(el("path", { d: gapD + " Z", stroke: "none", class: "gap-fill" }));
+
+    var SERIES = [
+      { key: "tMax", color: "#6ea8ff", label: "Daytime high" },
+      { key: "tMin", color: "#ff9d5c", label: "Overnight low" }
+    ];
+    SERIES.forEach(function (s) {
+      var d = "";
+      days.forEach(function (day, i) { d += (i === 0 ? "M " : " L ") + X(i) + " " + Y(day[s.key]); });
+      svg.appendChild(el("path", { d: d, fill: "none", stroke: s.color, "stroke-width": 2.25,
+        "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      days.forEach(function (day, i) {
+        svg.appendChild(el("circle", { cx: X(i), cy: Y(day[s.key]), r: 3, fill: s.color }));
+      });
+    });
+
+    // Flat setpoint reference line.
+    svg.appendChild(el("line", { x1: X(0), y1: Y(opts.setpoint), x2: X(days.length - 1),
+      y2: Y(opts.setpoint), "stroke-width": 2, "stroke-dasharray": "5 4", class: "setpoint-line" }));
+
+    days.forEach(function (day, i) {
+      var xl = el("text", { x: X(i), y: H - 26, class: "axis-label", "text-anchor": "middle" });
+      xl.textContent = fmt.DOW_SHORT[day.date.getDay()];
+      svg.appendChild(xl);
+      var xd = el("text", { x: X(i), y: H - 14, class: "axis-label", "text-anchor": "middle",
+        style: "opacity:.65" });
+      xd.textContent = day.date.getDate();
+      svg.appendChild(xd);
+
+      // Invisible hover column for a per-day tooltip.
+      var half = iw / (days.length - 1) / 2;
+      var hit = el("rect", { x: X(i) - half, y: m.t, width: half * 2, height: ih,
+        fill: "transparent", style: "cursor:pointer" });
+      hit.addEventListener("mousemove", function (ev) {
+        var gap = opts.setpoint - day.tMin;
+        showTip("<div class='tt-title'>" + fmt.dateDow(day.date) + "</div>" +
+          "<div class='tt-row'><span class='tt-key'>High</span><span class='tt-val'>" + fmt.num(day.tMax, 0) + "°</span></div>" +
+          "<div class='tt-row'><span class='tt-key'>Low</span><span class='tt-val'>" + fmt.num(day.tMin, 0) + "°</span></div>" +
+          (gap > 0 ? "<div class='tt-sub'>" + fmt.num(gap, 0) + "° of free cooling overnight</div>" : ""),
+          ev.clientX, ev.clientY);
+      });
+      hit.addEventListener("mouseleave", hideTip);
+      svg.appendChild(hit);
+    });
+
+    container.appendChild(svg);
+
+    var legend = document.createElement("div");
+    legend.className = "split-legend";
+    legend.innerHTML =
+      "<div class='split-legend-item'><span class='dot' style='background:#6ea8ff'></span>Daytime high</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:#ff9d5c'></span>Overnight low</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--cool)'></span>Your " +
+        fmt.num(opts.setpoint, 0) + "° setting</div>";
+    container.appendChild(legend);
+  }
+
   App.charts = {
     palette: palette,
+    forecastLines: forecastLines,
     heatColor: heatColor,
     timeSeries: timeSeries,
     heatmap: heatmap,

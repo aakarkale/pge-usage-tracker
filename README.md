@@ -32,6 +32,19 @@ only sends your ZIP + date range, never your usage.)
   - **Day-of-week** profile, **peak vs off-peak** cost split, and **usage-vs-temperature** scatter.
 - **Billing cycles** — enter your cycle dates and every total is grouped by billing period, with a
   **projected bill** for the in-progress cycle.
+- **The AC playbook** *(optional, needs a ZIP)* — the headline recommendation. Wattwise pulls your local
+  7-day forecast and builds a concrete thermostat schedule around *your* detected peak window:
+
+  | Period | Time | Set to |
+  |---|---|---|
+  | Wake | 6 AM | 76° |
+  | **Pre-cool** | **1 PM** | **72°** |
+  | **Peak** | **4 PM** | **78°** |
+  | Evening | 9 PM | 74° |
+
+  Plus per-day adjustment bands (skip AC under 78°, pre-cool harder above 88°), and a **night-flush**
+  callout that measures the gap between the overnight lows and your setpoint — free cooling you can let
+  in through a window.
 - **Weather-aware tips** *(optional)* — pull local hourly temperatures and Wattwise measures how
   cooling-driven your usage is, then suggests pre-cooling and load-shifting worth real dollars.
 - **Personalized recommendations** — tell it what you have (AC, EV, pool pump, electric dryer) and
@@ -105,7 +118,9 @@ js/
   parse.js          PG&E CSV parser (fuel + granularity auto-detect)
   analyze.js        Aggregation, TOU detection, anomaly engine, insights
   tips.js           Hour / weather / context-aware saving tips
-  weather.js        Optional client-side weather enrichment
+  acplan.js         Forecast-driven thermostat schedule (the AC playbook)
+  questions.js      Data-derived diagnostic questions
+  weather.js        Optional client-side weather enrichment (history + forecast)
   charts.js         Dependency-free SVG charts (heatmap, time series, load curve, …)
   app.js            Orchestration, rendering, persistence, interactions
   sample-data.js    Inlined anonymized sample CSVs (offline demo)
