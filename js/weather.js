@@ -46,12 +46,14 @@
   function fetchJson(url, timeoutMs) {
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, timeoutMs || 12000);
+    // Clear the deadline only once the BODY has been read: a server that sends
+    // headers and then stalls would otherwise hang the UI on "Fetching…".
     return fetch(url, { signal: ctrl.signal, mode: "cors" })
       .then(function (r) {
-        clearTimeout(to);
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       })
+      .then(function (j) { clearTimeout(to); return j; })
       .catch(function (e) { clearTimeout(to); throw e; });
   }
 

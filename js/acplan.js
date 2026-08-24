@@ -120,9 +120,12 @@
       var k = bandFor(d.tMax).key;
       counts[k] = (counts[k] || 0) + 1;
     });
-    var typicalKey = Object.keys(counts).reduce(function (a, b) {
-      return counts[a] >= counts[b] ? a : b;
-    });
+    // BANDS runs coolest -> hottest, so ">=" breaks count ties toward the hotter
+    // band. Folding over BANDS (not Object.keys) also keeps the result
+    // independent of the order the days happen to appear in the forecast.
+    var typicalKey = BANDS.reduce(function (a, b) {
+      return (counts[b.key] || 0) >= (counts[a.key] || 0) ? b : a;
+    }).key;
     var typical = BANDS.filter(function (b) { return b.key === typicalKey; })[0] || bandFor(medHigh);
     // A week of genuinely mild days still needs a fallback schedule to show.
     var scheduleBand = typical.precool == null ? BANDS[1] : typical;
@@ -146,6 +149,9 @@
       avgLow: avgLow,
       minLow: S.min(lows),
       maxLow: S.max(lows),
+      // Applicability is judged on the mean (a mostly-cool week is still worth
+      // flushing), but the copy must not claim a range it doesn't have.
+      allUnder: S.max(lows) < scheduleBand.sleep,
       setpoint: scheduleBand.sleep,
       openHour: peakEndHour,
       closeHour: 8

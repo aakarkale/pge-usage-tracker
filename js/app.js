@@ -17,6 +17,7 @@
     data: { electric: null, gas: null },   // { dataset, analysis } per fuel
     weather: { electric: null, gas: null },
     weatherStatus: { electric: "", gas: "" },
+    zipEntry: { electric: "", gas: "" },   // last ZIP the user typed, per fuel
     tips: { electric: [], gas: [] },
     questions: { electric: null, gas: null },
     activeFuel: null,
@@ -509,6 +510,8 @@
     // weather panel (electric only)
     if (a.fuel === "electric") { weatherPanel.hidden = false; renderWeather(a); }
     else { weatherPanel.hidden = true; }
+
+    renderAcChart();
   }
 
   function renderPeak(a) {
@@ -540,7 +543,7 @@
     var box = document.getElementById("weather-content");
     var wj = State.weather[State.activeFuel];
     var status = State.weatherStatus[State.activeFuel];
-    var zipGuess = App.weather.extractZip(a.meta.address);
+    var zipGuess = State.zipEntry[State.activeFuel] || App.weather.extractZip(a.meta.address);
 
     if (wj && wj.available) {
       var hot = wj.daily.filter(function (d) { return d.tMax != null && d.tMax >= wj.hotThresh; });
@@ -576,30 +579,50 @@
           "stays in the browser.</p>" +
         "<div class='wx-form'>" +
           "<input id='wx-zip' class='input' type='text' inputmode='numeric' maxlength='5' placeholder='ZIP' value='" +
-            (zipGuess || "") + "' />" +
+            esc(zipGuess || "") + "' />" +
           "<button id='wx-go' class='btn btn-primary'" + (loading ? " disabled" : "") + ">" +
             (loading ? "Fetching…" : "🌦️ Add local weather") + "</button>" +
         "</div>" +
-        (status && status !== "loading" ? "<div class='wx-status'>" + status + "</div>" : "") +
+        (status && status !== "loading" ? "<div class='wx-status'>" + esc(status) + "</div>" : "") +
       "</div>";
     var go = document.getElementById("wx-go");
     if (go) go.onclick = function () {
       var zip = (document.getElementById("wx-zip").value || "").trim();
       fetchWeather(zip);
     };
+    var wzi = document.getElementById("wx-zip");
+    if (wzi) wzi.oninput = function () { State.zipEntry[State.activeFuel] = this.value.trim(); };
   }
+
+  var wxSeq = 0;   // guards against a stale response overwriting a newer one
 
   function fetchWeather(zip) {
     var fuel = State.activeFuel;
     var a = State.data[fuel].analysis;
+    var seq = ++wxSeq;
+    State.zipEntry[fuel] = zip;
     State.weatherStatus[fuel] = "loading";
-    renderWeather(a);
+    renderWeather(a); renderAcPlan();
     App.weather.enrich(a, { zip: zip }).then(function (wj) {
+      if (seq !== wxSeq) return;                       // a newer lookup superseded this one
+      // Only half the lookup may have succeeded. For the same location, keep
+      // whichever half we already had rather than destroying data on screen.
+      var prev = State.weather[fuel];
+      var sameLoc = prev && prev.lat === wj.lat && prev.lon === wj.lon;
+      if (sameLoc) {
+        if (!wj.forecast && prev.forecast) { wj.forecast = prev.forecast; wj.current = prev.current; }
+        if (!wj.available && prev.available) {
+          wj.tempByKey = prev.tempByKey; wj.daily = prev.daily;
+          wj.corr = prev.corr; wj.hotThresh = prev.hotThresh;
+          wj.unit = prev.unit; wj.available = true;
+        }
+      }
       State.weather[fuel] = wj;
       State.weatherStatus[fuel] = wj.available ? "" : "No weather data was available for that location/date range.";
       regenTips();
       renderWeather(a); renderTips(); renderSavings(); renderAcPlan();
     }).catch(function (e) {
+      if (seq !== wxSeq) return;
       State.weatherStatus[fuel] = (e && e.message ? e.message : "Weather lookup failed.") +
         " You can still use every other feature.";
       renderWeather(a); renderAcPlan();
@@ -615,6 +638,19 @@
     });
   }
 
+  // Cached so the forecast chart can be redrawn (resize / theme / metric)
+  // without rebuilding the panel HTML, which would wipe an in-progress ZIP.
+  var lastAcPlan = null;
+
+  function renderAcChart() {
+    var panel = document.getElementById("panel-acplan");
+    var holder = document.getElementById("ac-chart");
+    if (!panel || panel.hidden || !holder || !lastAcPlan) return;
+    charts.forecastLines(holder, {
+      days: lastAcPlan.days, setpoint: lastAcPlan.scheduleBand.sleep, height: 240
+    });
+  }
+
   function acRow(cells, cls) {
     return "<tr" + (cls ? " class='" + cls + "'" : "") + ">" +
       cells.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
@@ -624,6 +660,7 @@
     var box = document.getElementById("acplan-content");
     var panel = document.getElementById("panel-acplan");
     var a = State.data[State.activeFuel].analysis;
+    lastAcPlan = null;   // cleared here so every early return below invalidates it
 
     if (a.fuel !== "electric" || a.granularity !== "hourly") { panel.hidden = true; return; }
     panel.hidden = false;
@@ -641,21 +678,23 @@
         return;
       }
       var status = State.weatherStatus[State.activeFuel];
-      var zipGuess = App.weather.extractZip(a.meta.address);
+      var zipGuess = State.zipEntry[State.activeFuel] || App.weather.extractZip(a.meta.address);
       box.innerHTML =
         "<div class='ac-cta'><p>Enter your ZIP and Wattwise pulls your local forecast, then builds a " +
           "thermostat schedule around your " + (a.rates.detected ? a.rates.peakWindowLabel : "peak") +
           " window — exact temperatures, exact times.</p>" +
         "<div class='wx-form'>" +
           "<input id='ac-zip' class='input' type='text' inputmode='numeric' maxlength='5' placeholder='ZIP' value='" +
-            (zipGuess || "") + "' />" +
+            esc(zipGuess || "") + "' />" +
           "<button id='ac-go' class='btn btn-primary'" + (status === "loading" ? " disabled" : "") + ">" +
             (status === "loading" ? "Fetching…" : "Build my AC schedule") + "</button>" +
         "</div>" +
-        (status && status !== "loading" ? "<div class='wx-status'>" + status + "</div>" : "") +
+        (status && status !== "loading" ? "<div class='wx-status'>" + esc(status) + "</div>" : "") +
         "</div>";
       var go = document.getElementById("ac-go");
       if (go) go.onclick = function () { fetchWeather((document.getElementById("ac-zip").value || "").trim()); };
+      var zi = document.getElementById("ac-zip");
+      if (zi) zi.oninput = function () { State.zipEntry[State.activeFuel] = this.value.trim(); };
       return;
     }
 
@@ -708,9 +747,15 @@
     var nf = plan.nightFlush;
     var flushHtml = nf.applicable
       ? "<div class='ac-flush'><div class='ac-flush-num'>" + fmt.num(nf.gap, 0) + "°</div>" +
-        "<div class='ac-flush-body'><b>Free air conditioning every night.</b> Lows run " +
-        fmt.num(nf.minLow, 0) + "–" + fmt.num(nf.maxLow, 0) + "° this week, well under your " +
-        nf.setpoint + "° setting. Open windows around " + fmt.hour12(nf.openHour) +
+        "<div class='ac-flush-body'><b>Free air conditioning " +
+        (nf.allUnder ? "every night" : "most nights") + ".</b> " +
+        (nf.allUnder
+          ? "Lows run " + fmt.num(nf.minLow, 0) + "–" + fmt.num(nf.maxLow, 0) +
+            "° this week, well under your " + nf.setpoint + "° setting."
+          : "Lows average " + fmt.num(nf.avgLow, 0) + "°, well under your " + nf.setpoint +
+            "° setting — though the warmest night only drops to " + fmt.num(nf.maxLow, 0) +
+            "°, so skip the flush that night.") +
+        " Open windows around " + fmt.hour12(nf.openHour) +
         " once it's cooler outside than in, and close them by " + fmt.hour12(nf.closeHour) +
         " before the outside air passes your indoor temperature." +
         (plan.morningLoad ? " On most days that alone handles your mornings — it may erase the " +
@@ -757,9 +802,8 @@
           plan.caution + "</span></div>" +
       "</div>";
 
-    charts.forecastLines(document.getElementById("ac-chart"), {
-      days: plan.days, setpoint: plan.scheduleBand.sleep, height: 240
-    });
+    lastAcPlan = plan;
+    renderAcChart();
   }
 
   /* ---- rendering: context / diagnostic questions ----------------------- */
@@ -1098,7 +1142,7 @@
     });
 
     window.addEventListener("resize", debounce(function () {
-      if (State.activeFuel) renderCharts();
+      if (State.activeFuel) renderCharts();   // renderCharts() also redraws the AC chart
     }, 180));
   }
 

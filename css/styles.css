@@ -40,6 +40,8 @@ a { color: inherit; }
   --accent-soft: rgba(255,194,75,0.14);
   --violet: #a78bfa;
   --cool: #5eead4;          /* pre-cool / free-cooling accent */
+  --temp-high: #6ea8ff;     /* forecast daytime high */
+  --temp-low: #ff9d5c;      /* forecast overnight low */
   --cool-fill: rgba(94,234,212,0.14);
   --radius: 16px;
   --radius-sm: 10px;
@@ -72,7 +74,8 @@ a { color: inherit; }
   --shadow: 0 12px 32px -16px rgba(15,23,42,0.28);
   --accent-ink: #b7801a;
 }
-[data-theme="light"] { --cool: #0d7d70; --cool-fill: rgba(13,125,112,0.10); }
+[data-theme="light"] { --cool: #0d7d70; --cool-fill: rgba(13,125,112,0.10);
+  --temp-high: #2563eb; --temp-low: #c2410c; }
 [data-theme="light"][data-fuel="gas"] { --accent-ink: #0d9488; }
 
 /* ---- base -------------------------------------------------------------- */
@@ -278,7 +281,7 @@ body {
 .ps-lbl { color: var(--text-mute); font-size: 12px; }
 .split-bar { display: flex; height: 30px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border); }
 .split-seg { height: 100%; transition: width .4s ease; }
-.split-legend { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+.split-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 10px; font-size: 13px; color: var(--text-dim); }
 .split-legend-item .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 .split-legend-item b { color: var(--text); }
 .peak-caption { margin-top: 12px; color: var(--text-dim); font-size: 13px; }
@@ -324,7 +327,7 @@ body {
 .fc-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--border); }
 .fc-day.fc-hot { border-color: rgba(255,157,60,0.45); background: rgba(255,157,60,0.08); }
 .fc-day.fc-extreme { border-color: rgba(255,92,108,0.5); background: rgba(255,92,108,0.10); }
-.fc-day.fc-off { opacity: .72; }
+.fc-day.fc-off { background: var(--panel); border-style: dashed; }
 .fc-dow { font-size: 11px; color: var(--text-mute); font-weight: 600; }
 .fc-ico { font-size: 16px; line-height: 1.3; }
 .fc-hi { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -341,7 +344,10 @@ body {
 .ac-table tr.ac-key td:first-child { font-weight: 700; }
 .ac-note { color: var(--text-mute); font-size: 12.5px; }
 .ac-count { font-size: 11px; font-weight: 700; background: var(--accent); color: #17130a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
-.ac-band-dim td { opacity: .5; }
+/* De-emphasize bands no forecast day hits WITHOUT stacking alpha onto
+   --text-mute, which put .ac-note at ~1.7:1 in light theme. */
+.ac-band-dim td { background: var(--panel-2); }
+.ac-band-dim .ac-note { color: var(--text-dim); }
 .ac-only-two { color: var(--text-dim); font-size: 13.5px; margin-top: 12px; max-width: 70ch; }
 .ac-only-two b { color: var(--text); }
 

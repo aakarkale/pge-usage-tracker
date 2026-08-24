@@ -73,6 +73,28 @@
 
   /* ---- TOU rate detection ---------------------------------------------- */
   /*
+   * Downstream consumers (acplan, tips, the heatmap band, the window label)
+   * treat peakHours as a WINDOW: first hour .. last hour + 1. detectRates tests
+   * each hour independently, so a single noisy hour that clears the threshold
+   * would relocate that window. Keep only the dominant contiguous run, merging
+   * across midnight so a wrapping window survives intact.
+   */
+  function peakWindow(hours) {
+    if (hours.length < 2) return hours;
+    var runs = [[hours[0]]];
+    for (var i = 1; i < hours.length; i++) {
+      if (hours[i] === hours[i - 1] + 1) runs[runs.length - 1].push(hours[i]);
+      else runs.push([hours[i]]);
+    }
+    var first = runs[0], last = runs[runs.length - 1];
+    if (runs.length > 1 && first[0] === 0 && last[last.length - 1] === 23) {
+      runs[runs.length - 1] = last.concat(first);   // e.g. 22,23,0,1
+      runs.shift();
+    }
+    return runs.reduce(function (a, b) { return b.length > a.length ? b : a; });
+  }
+
+  /*
    * We infer the rate schedule straight from the data: implied $/unit for each
    * interval is cost / usage. If certain hours are systematically pricier, that
    * is the peak window — no hard-coded assumptions about the customer's plan.
@@ -112,6 +134,10 @@
         if (m >= overall * 1.12) peakHours.push(hr);
       }
     }
+
+    // Collapse to the dominant window before rates are averaged, so a stray
+    // hour cannot skew peakRate/offPeakRate either.
+    peakHours = peakWindow(peakHours);
 
     if (peakHours.length) {
       var peakR = [], offR = [];

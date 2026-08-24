@@ -77,6 +77,20 @@
 
   var SEV_COLOR = { high: "#ff5c6c", medium: "#ffb020", low: "#6ea8ff" };
 
+  /* peakHours may wrap midnight (e.g. [22,23,0,1]); split into ascending
+     contiguous segments so a band is never drawn past hour 23 or with a
+     negative width. */
+  function peakSegments(hours) {
+    if (!hours || !hours.length) return [];
+    var sorted = hours.slice().sort(function (a, b) { return a - b; });
+    var segs = [[sorted[0]]];
+    for (var i = 1; i < sorted.length; i++) {
+      if (sorted[i] === sorted[i - 1] + 1) segs[segs.length - 1].push(sorted[i]);
+      else segs.push([sorted[i]]);
+    }
+    return segs.map(function (g) { return { start: g[0], end: g[g.length - 1] }; });
+  }
+
   /* ---- shared tooltip --------------------------------------------------- */
 
   var tipEl = null;
@@ -274,11 +288,17 @@
     var peakHours = opts.peakHours || [];
 
     // peak window backdrop
-    if (peakHours.length) {
-      var px = m.l + peakHours[0] * cellW;
-      var pw = peakHours.length * cellW;
-      svg.appendChild(el("rect", { x: px, y: 4, width: pw, height: H - 8, rx: 3, class: "peak-band" }));
-      var pl = el("text", { x: px + pw / 2, y: 12, class: "axis-label", "text-anchor": "middle",
+    var pSegs = peakSegments(peakHours);
+    if (pSegs.length) {
+      var widest = pSegs.reduce(function (a, b) {
+        return (b.end - b.start) > (a.end - a.start) ? b : a;
+      });
+      pSegs.forEach(function (seg) {
+        svg.appendChild(el("rect", { x: m.l + seg.start * cellW, y: 4,
+          width: (seg.end - seg.start + 1) * cellW, height: H - 8, rx: 3, class: "peak-band" }));
+      });
+      var lx = m.l + (widest.start + (widest.end - widest.start + 1) / 2) * cellW;
+      var pl = el("text", { x: lx, y: 12, class: "axis-label", "text-anchor": "middle",
         style: "font-weight:600;fill:var(--accent)" });
       pl.textContent = "PEAK " + opts.peakLabel;
       svg.appendChild(pl);
@@ -393,11 +413,10 @@
 
     // peak shading
     var peakHours = opts.peakHours || [];
-    if (peakHours.length) {
-      svg.appendChild(el("rect", { x: X(peakHours[0]), y: m.t,
-        width: X(peakHours[peakHours.length - 1]) - X(peakHours[0]) + iw / 23, height: ih,
-        class: "peak-band" }));
-    }
+    peakSegments(peakHours).forEach(function (seg) {
+      svg.appendChild(el("rect", { x: X(seg.start), y: m.t,
+        width: X(seg.end) - X(seg.start) + iw / 23, height: ih, class: "peak-band" }));
+    });
 
     // y grid
     niceTicks(0, vmax, 4).forEach(function (v) {
@@ -672,8 +691,8 @@
     svg.appendChild(el("path", { d: gapD + " Z", stroke: "none", class: "gap-fill" }));
 
     var SERIES = [
-      { key: "tMax", color: "#6ea8ff", label: "Daytime high" },
-      { key: "tMin", color: "#ff9d5c", label: "Overnight low" }
+      { key: "tMax", color: "var(--temp-high)", label: "Daytime high" },
+      { key: "tMin", color: "var(--temp-low)", label: "Overnight low" }
     ];
     SERIES.forEach(function (s) {
       var d = "";
@@ -719,8 +738,8 @@
     var legend = document.createElement("div");
     legend.className = "split-legend";
     legend.innerHTML =
-      "<div class='split-legend-item'><span class='dot' style='background:#6ea8ff'></span>Daytime high</div>" +
-      "<div class='split-legend-item'><span class='dot' style='background:#ff9d5c'></span>Overnight low</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--temp-high)'></span>Daytime high</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--temp-low)'></span>Overnight low</div>" +
       "<div class='split-legend-item'><span class='dot' style='background:var(--cool)'></span>Your " +
         fmt.num(opts.setpoint, 0) + "° setting</div>";
     container.appendChild(legend);
