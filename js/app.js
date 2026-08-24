@@ -18,6 +18,7 @@
     weather: { electric: null, gas: null },
     weatherStatus: { electric: "", gas: "" },
     tips: { electric: [], gas: [] },
+    questions: { electric: null, gas: null },
     activeFuel: null,
     metric: "usage",
     selectedDay: null,
@@ -47,7 +48,71 @@
     }
     if (!s.annotations) s.annotations = { electric: {}, gas: {} };
     if (!s.annotations[State.activeFuel]) s.annotations[State.activeFuel] = {};
+    if (!s.answers) s.answers = { electric: {}, gas: {} };
+    if (!s.answers[State.activeFuel]) s.answers[State.activeFuel] = {};
     return s;
+  }
+
+  function activeQuestions() {
+    if (!State.questions[State.activeFuel]) {
+      State.questions[State.activeFuel] =
+        App.questions.generate(State.data[State.activeFuel].analysis);
+    }
+    return State.questions[State.activeFuel];
+  }
+
+  /* Recompute the household profile from the current question answers across
+   * BOTH fuels (AC/EV/pool are household-level), so toggling an answer off
+   * cleanly removes its effect and answering gas questions never wipes an
+   * electric-derived profile. */
+  function deriveProfile() {
+    var p = {};
+    ["electric", "gas"].forEach(function (fuel) {
+      if (!State.data[fuel]) return;
+      if (!State.questions[fuel]) State.questions[fuel] = App.questions.generate(State.data[fuel].analysis);
+      var s = State.settings[State.accountKey];
+      var ans = (s && s.answers && s.answers[fuel]) || {};
+      State.questions[fuel].forEach(function (q) {
+        var a = ans[q.id];
+        if (a == null) return;
+        var vals = q.multi ? (a || []) : [a];
+        q.options.forEach(function (o) {
+          if (o.apply && o.apply.profile && vals.indexOf(o.value) !== -1) {
+            Object.keys(o.apply.profile).forEach(function (k) { p[k] = o.apply.profile[k]; });
+          }
+        });
+      });
+    });
+    return p;
+  }
+
+  /* Keep per-day annotations in sync with a spike/dip question's answer. */
+  function applyQuestionAnnotation(q, ans) {
+    if (!q.dateKey) return;
+    var an = acctSettings().annotations[State.activeFuel];
+    var cur = an[q.dateKey] = an[q.dateKey] || {};
+    var vals = q.multi ? (ans || []) : (ans == null ? [] : [ans]);
+    var controlsAway = q.options.some(function (o) { return o.apply && o.apply.annotation && "away" in o.apply.annotation; });
+    var controlsCause = q.options.some(function (o) { return o.apply && o.apply.annotation && "cause" in o.apply.annotation; });
+    if (controlsAway) cur.away = false;
+    if (controlsCause) cur.cause = "";
+    q.options.forEach(function (o) {
+      if (o.apply && o.apply.annotation && vals.indexOf(o.value) !== -1) {
+        if ("away" in o.apply.annotation) cur.away = o.apply.annotation.away;
+        if ("cause" in o.apply.annotation) cur.cause = o.apply.annotation.cause;
+      }
+    });
+  }
+
+  function setAnswer(q, value) {
+    var ans = acctSettings().answers[State.activeFuel];
+    ans[q.id] = value;
+    acctSettings().profile = deriveProfile();
+    applyQuestionAnnotation(q, value);
+    saveSettings();
+    regenTips();
+    renderKpis(); renderInsights(); renderSavings(); renderTips();
+    renderEventFilters(); renderEvents(); renderContext();
   }
 
   /* ---- date helpers ----------------------------------------------------- */
@@ -180,6 +245,7 @@
 
   function afterLoad(firstFuel) {
     State.activeFuel = State.data.electric ? "electric" : (State.data.gas ? "gas" : firstFuel);
+    State.questions = { electric: null, gas: null };  // regenerate for the new data
     var a = State.data[State.activeFuel].analysis;
     State.accountKey = a.meta.account || a.meta.service || "default";
     document.getElementById("hero").hidden = true;
@@ -540,53 +606,80 @@
     });
   }
 
-  /* ---- rendering: context / profile ------------------------------------ */
-
-  var PROFILE_FIELDS = [
-    { key: "acType", label: "Air conditioning", type: "select",
-      options: [["", "—"], ["none", "None"], ["window", "Window unit"], ["central", "Central AC"], ["heatpump", "Heat pump"]] },
-    { key: "ev", label: "Electric vehicle", type: "check" },
-    { key: "pool", label: "Pool / spa pump", type: "check" },
-    { key: "dryer", label: "Electric dryer", type: "check" },
-    { key: "occupancy", label: "Typical weekday", type: "select",
-      options: [["", "—"], ["home", "Someone home all day"], ["away", "Away 9–5"], ["varies", "Varies"]] }
-  ];
+  /* ---- rendering: context / diagnostic questions ----------------------- */
 
   function renderContext() {
     var box = document.getElementById("context-content");
+    var qs = activeQuestions();
     var s = acctSettings();
-    var p = s.profile || {};
-    var html = "<p class='ctx-lede'>These stay on your device and immediately sharpen the recommendations above.</p>" +
-      "<div class='ctx-form'>";
-    PROFILE_FIELDS.forEach(function (f) {
-      if (f.type === "check") {
-        html += "<label class='ctx-check'><input type='checkbox' data-key='" + f.key + "'" +
-          (p[f.key] ? " checked" : "") + " /> <span>" + f.label + "</span></label>";
-      } else {
-        html += "<label class='ctx-field'><span class='field-label'>" + f.label + "</span>" +
-          "<select class='input' data-key='" + f.key + "'>" +
-          f.options.map(function (o) {
-            return "<option value='" + o[0] + "'" + (p[f.key] === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
-          }).join("") + "</select></label>";
-      }
-    });
-    html += "</div>";
-    var awayCount = Object.keys(s.annotations[State.activeFuel] || {}).filter(function (k) {
-      return s.annotations[State.activeFuel][k].away;
-    }).length;
-    html += "<div class='ctx-away'>🧳 Days marked “away”: <b>" + awayCount + "</b> " +
-      "<span class='ctx-away-hint'>— mark them in the event feed below to measure your true baseline.</span></div>";
-    box.innerHTML = html;
+    var ans = s.answers[State.activeFuel];
+    if (!qs.length) { box.innerHTML = "<div class='empty-hint'>No questions for this view.</div>"; return; }
 
-    box.querySelectorAll("[data-key]").forEach(function (elm) {
-      elm.onchange = function () {
-        var s2 = acctSettings();
-        s2.profile = s2.profile || {};
-        s2.profile[elm.dataset.key] = elm.type === "checkbox" ? elm.checked : elm.value;
-        saveSettings();
-        regenTips();
-        renderTips(); renderSavings(); renderContext();
+    var answered = qs.filter(function (q) {
+      var a = ans[q.id];
+      return a != null && (!Array.isArray(a) || a.length);
+    }).length;
+
+    var head = "<div class='ctx-progress'><div class='ctx-progress-bar'><span style='width:" +
+      (answered / qs.length * 100) + "%'></span></div><span class='ctx-progress-txt'>" +
+      answered + " of " + qs.length + " answered · each answer sharpens your tips, and stays on this device</span></div>";
+
+    var cards = qs.map(function (q) { return renderQuestionCard(q, ans[q.id], ans[q.id + ":text"]); }).join("");
+    box.innerHTML = head + "<div class='q-list'>" + cards + "</div>";
+    wireQuestionCards(box, qs);
+  }
+
+  function renderQuestionCard(q, ansVal, freeText) {
+    var isAnswered = ansVal != null && (!Array.isArray(ansVal) || ansVal.length);
+    var opts = q.options.map(function (o) {
+      var sel = q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value;
+      return "<button type='button' class='q-opt" + (sel ? " q-opt-sel" : "") + "' data-q='" + q.id +
+        "' data-val='" + o.value + "'>" +
+        "<span class='q-mark" + (q.multi ? " q-mark-box" : "") + "'>" + (sel ? (q.multi ? "✓" : "●") : "") + "</span>" +
+        "<span class='q-opt-label'>" + o.label + "</span></button>";
+    }).join("");
+    var freeOpt = q.options.some(function (o) { return o.free && (q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value); });
+    var freeInput = freeOpt ? "<input type='text' class='input q-free' data-q='" + q.id +
+      "' placeholder='Tell us more (optional)' value='" + (freeText ? String(freeText).replace(/"/g, "&quot;") : "") + "' />" : "";
+    return "<div class='q-card" + (isAnswered ? " q-answered" : "") + "'>" +
+      "<div class='q-top'>" +
+        "<div class='q-title'>" + q.title + (isAnswered ? " <span class='q-check'>✓</span>" : "") + "</div>" +
+        (q.chip ? "<span class='q-chip'>" + q.chip + "</span>" : "") +
+      "</div>" +
+      (q.subtitle ? "<div class='q-sub'>" + q.subtitle + "</div>" : "") +
+      "<div class='q-opts" + (q.multi ? " q-opts-multi" : "") + "'>" + opts + "</div>" +
+      freeInput +
+      (isAnswered ? "<button class='linkbtn q-clear' data-q='" + q.id + "'>Clear answer</button>" : "") +
+      "</div>";
+  }
+
+  function wireQuestionCards(box, qs) {
+    var byId = {};
+    qs.forEach(function (q) { byId[q.id] = q; });
+    box.querySelectorAll(".q-opt").forEach(function (btn) {
+      btn.onclick = function () {
+        var q = byId[btn.dataset.q];
+        var ans = acctSettings().answers[State.activeFuel];
+        if (q.multi) {
+          var cur = Array.isArray(ans[q.id]) ? ans[q.id].slice() : [];
+          var i = cur.indexOf(btn.dataset.val);
+          if (i === -1) cur.push(btn.dataset.val); else cur.splice(i, 1);
+          setAnswer(q, cur);
+        } else {
+          setAnswer(q, ans[q.id] === btn.dataset.val ? null : btn.dataset.val);
+        }
       };
+    });
+    box.querySelectorAll(".q-free").forEach(function (inp) {
+      inp.onchange = function () {
+        var s = acctSettings();
+        s.answers[State.activeFuel][inp.dataset.q + ":text"] = inp.value;
+        saveSettings();
+      };
+      inp.onclick = function (e) { e.stopPropagation(); };
+    });
+    box.querySelectorAll(".q-clear").forEach(function (b) {
+      b.onclick = function () { setAnswer(byId[b.dataset.q], null); };
     });
   }
 
