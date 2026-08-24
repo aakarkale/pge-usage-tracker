@@ -55,6 +55,10 @@
     return s;
   }
 
+  /* A question about "the spike on Jul 14" must not answer itself for a
+     different upload whose spike is a different day. */
+  function answerKey(q) { return q.dateKey ? q.id + "@" + q.dateKey : q.id; }
+
   function activeQuestions() {
     if (!State.questions[State.activeFuel]) {
       State.questions[State.activeFuel] =
@@ -75,7 +79,7 @@
       var s = State.settings[State.accountKey];
       var ans = (s && s.answers && s.answers[fuel]) || {};
       State.questions[fuel].forEach(function (q) {
-        var a = ans[q.id];
+        var a = ans[answerKey(q)];
         if (a == null) return;
         var vals = q.multi ? (a || []) : [a];
         q.options.forEach(function (o) {
@@ -108,11 +112,11 @@
 
   function setAnswer(q, value) {
     var ans = acctSettings().answers[State.activeFuel];
-    ans[q.id] = value;
+    ans[answerKey(q)] = value;
     acctSettings().profile = deriveProfile();
     applyQuestionAnnotation(q, value);
     saveSettings();
-    App.account.store.saveAnswer(State.activeFuel, q.id, value);
+    App.account.store.saveAnswer(State.activeFuel, answerKey(q), value);
     regenTips();
     renderKpis(); renderInsights(); renderSavings(); renderTips(); renderAcPlan();
     renderEventFilters(); renderEvents(); renderContext();
@@ -223,6 +227,9 @@
   /* Persist an ingested file so it shows up in "Your uploads" next visit. */
   function persistUpload(fuel) {
     var d = State.data[fuel];
+    // What is on screen is a NEW file until it is saved; never let the previous
+    // upload's id stand in for it, or its cycle lands on the wrong row.
+    State.uploadIds[fuel] = null;
     if (!d || !d.csv) return Promise.resolve(null);
     var a = d.analysis;
     return App.account.store.createUpload({
@@ -239,11 +246,14 @@
       total_cost: Math.round(a.totals.cost * 100) / 100,
       csv: d.csv
     }).then(function (row) {
-      if (row) State.uploadIds[fuel] = row.id;
+      State.uploadIds[fuel] = row ? row.id : null;
       return row;
     }).catch(function (e) {
-      // A failed save must never block the analysis the user is looking at.
+      // A failed save must never block the analysis the user is looking at —
+      // but it must not be silent either, or the file quietly isn't there later.
       console.warn("Could not save upload:", e && e.message);
+      showError("Couldn't save " + (d.dataset.fileName || (fuel + ".csv")) +
+        " to your account. The analysis below still works, but it won't be here next visit.");
       return null;
     });
   }
@@ -264,7 +274,7 @@
       return Promise.all(loaded.map(persistUpload)).then(function () {
         // A new export almost always covers a new period, so the cycle is
         // confirmed on every upload rather than only the first.
-        afterLoad(loaded[0], { promptBilling: true });
+        afterLoad(loaded.indexOf("electric") !== -1 ? "electric" : loaded[0], { promptBilling: true });
         refreshUploadsPanel();
       });
     });
@@ -275,15 +285,30 @@
     try {
       ingestText(App.sampleData.electric, "electric-sample.csv");
       ingestText(App.sampleData.gas, "gas-sample.csv");
-      afterLoad("electric", { promptBilling: true, sample: true });
+      State.uploadIds = { electric: null, gas: null };  // sample data is not a saved upload
+      afterLoad("electric", { promptBilling: true });
     } catch (e) { showError(e.message); }
   }
 
   function afterLoad(firstFuel, opts) {
-    State.activeFuel = State.data.electric ? "electric" : (State.data.gas ? "gas" : firstFuel);
+    // Follow the file that was actually opened; "electric leads" is a choice the
+    // multi-file batch path makes when handing us its fuel, not a rule here.
+    State.activeFuel = State.data[firstFuel] ? firstFuel
+      : (State.data.electric ? "electric" : "gas");
     State.questions = { electric: null, gas: null };  // regenerate for the new data
     var a = State.data[State.activeFuel].analysis;
-    State.accountKey = a.meta.account || a.meta.service || "default";
+    // Namespaced by the signed-in identity, never by the CSV's utility account
+    // alone — otherwise two people sharing a browser (or the same account
+    // number) read and overwrite each other's notes, answers and billing cycle.
+    var authUser = (App.api.currentUser && App.api.currentUser()) || null;
+    State.accountKey = (authUser && authUser.id ? authUser.id : "guest") + "|" +
+                       (a.meta.account || a.meta.service || "default");
+    if (opts && opts.billing) {
+      var acct0 = State.settings[State.accountKey] ||
+        (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
+      acct0.billing = opts.billing;
+      saveSettings();
+    }
     document.getElementById("hero").hidden = true;
     document.getElementById("dashboard").hidden = false;
     document.getElementById("btn-new").hidden = false;
@@ -310,7 +335,14 @@
 
   function showError(msg) {
     var e = document.getElementById("error-box");
+    var hero = document.getElementById("hero");
+    // The banner lives in the hero, which is gone once a dashboard is up — move
+    // it to whichever container is actually on screen.
+    var host = hero.hidden ? document.getElementById("dashboard")
+                           : hero.querySelector(".hero-inner");
+    if (host && e.parentNode !== host) host.insertBefore(e, host.firstChild);
     e.textContent = "⚠ " + msg; e.hidden = false;
+    if (hero.hidden && e.scrollIntoView) e.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
   function hideError() { document.getElementById("error-box").hidden = true; }
 
@@ -733,6 +765,38 @@
     });
   }
 
+  /*
+   * Pull a saved file's annotations and answers back down, so the notes someone
+   * made on one device are there on the next. Without this the writes are
+   * one-way and the labels silently vanish.
+   */
+  function hydrateSaved(fuel, uploadId) {
+    return Promise.all([
+      App.account.store.listAnnotations(uploadId),
+      App.account.store.listAnswers()
+    ]).then(function (res) {
+      var anns = res[0] || [], answers = res[1] || [];
+      if (!anns.length && !answers.length) return;
+      var prev = State.activeFuel;
+      State.activeFuel = fuel;
+      var st = acctSettings();
+      anns.forEach(function (r) {
+        var cur = st.annotations[fuel][r.date_key] = st.annotations[fuel][r.date_key] || {};
+        cur.away = !!r.away;
+        cur.cause = r.cause || "";
+      });
+      answers.forEach(function (r) {
+        if (!st.answers[r.fuel]) st.answers[r.fuel] = {};
+        st.answers[r.fuel][r.question_id] = r.value;
+      });
+      State.activeFuel = prev;
+      st.profile = deriveProfile();
+      saveSettings();
+      regenTips();
+      render();
+    }).catch(function () { /* labels are a nicety; never block the dashboard */ });
+  }
+
   /* Re-open a previously saved file: fetch the stored CSV and re-analyze it. */
   function openSavedUpload(id) {
     App.account.store.getUpload(id).then(function (row) {
@@ -740,14 +804,12 @@
       var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
       State.uploadIds[fuel] = row.id;
       State.questions[fuel] = null;
-      // A saved file already has its cycle confirmed, so don't re-prompt.
-      if (row.billing_start && row.billing_end) {
-        var acct = State.settings[State.accountKey] ||
-          (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
-        acct.billing = { startISO: row.billing_start, endISO: row.billing_end };
-        saveSettings();
-      }
-      afterLoad(fuel, { promptBilling: !(row.billing_start && row.billing_end) });
+      // The cycle is handed to afterLoad so it lands under the account key
+      // afterLoad itself computes — setting it here would use a stale key.
+      var cyc = (row.billing_start && row.billing_end)
+        ? { startISO: row.billing_start, endISO: row.billing_end } : null;
+      afterLoad(fuel, { promptBilling: !cyc, billing: cyc });
+      hydrateSaved(fuel, row.id);
     }).catch(function (e) {
       showError((e && e.message) || "That upload could not be loaded.");
     });
@@ -940,7 +1002,7 @@
     if (!qs.length) { box.innerHTML = "<div class='empty-hint'>No questions for this view.</div>"; return; }
 
     var answered = qs.filter(function (q) {
-      var a = ans[q.id];
+      var a = ans[answerKey(q)];
       return a != null && (!Array.isArray(a) || a.length);
     }).length;
 
@@ -948,7 +1010,9 @@
       (answered / qs.length * 100) + "%'></span></div><span class='ctx-progress-txt'>" +
       answered + " of " + qs.length + " answered · each answer sharpens your tips, and stays on this device</span></div>";
 
-    var cards = qs.map(function (q) { return renderQuestionCard(q, ans[q.id], ans[q.id + ":text"]); }).join("");
+    var cards = qs.map(function (q) {
+      return renderQuestionCard(q, ans[answerKey(q)], ans[answerKey(q) + ":text"]);
+    }).join("");
     box.innerHTML = head + "<div class='q-list'>" + cards + "</div>";
     wireQuestionCards(box, qs);
   }
@@ -957,14 +1021,16 @@
     var isAnswered = ansVal != null && (!Array.isArray(ansVal) || ansVal.length);
     var opts = q.options.map(function (o) {
       var sel = q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value;
-      return "<button type='button' class='q-opt" + (sel ? " q-opt-sel" : "") + "' data-q='" + q.id +
+      return "<button type='button' class='q-opt" + (sel ? " q-opt-sel" : "") + "' data-q='" + esc(answerKey(q)) +
         "' data-val='" + o.value + "'>" +
         "<span class='q-mark" + (q.multi ? " q-mark-box" : "") + "'>" + (sel ? (q.multi ? "✓" : "●") : "") + "</span>" +
         "<span class='q-opt-label'>" + o.label + "</span></button>";
     }).join("");
     var freeOpt = q.options.some(function (o) { return o.free && (q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value); });
-    var freeInput = freeOpt ? "<input type='text' class='input q-free' data-q='" + q.id +
-      "' placeholder='Tell us more (optional)' value='" + (freeText ? String(freeText).replace(/"/g, "&quot;") : "") + "' />" : "";
+    // esc() escapes the single quote too; the previous &quot;-only escaping let a
+    // value break out of this attribute and inject an event handler.
+    var freeInput = freeOpt ? "<input type='text' class='input q-free' data-q='" + esc(answerKey(q)) +
+      "' placeholder='Tell us more (optional)' value='" + esc(freeText) + "' />" : "";
     return "<div class='q-card" + (isAnswered ? " q-answered" : "") + "'>" +
       "<div class='q-top'>" +
         "<div class='q-title'>" + q.title + (isAnswered ? " <span class='q-check'>✓</span>" : "") + "</div>" +
@@ -973,24 +1039,24 @@
       (q.subtitle ? "<div class='q-sub'>" + q.subtitle + "</div>" : "") +
       "<div class='q-opts" + (q.multi ? " q-opts-multi" : "") + "'>" + opts + "</div>" +
       freeInput +
-      (isAnswered ? "<button class='linkbtn q-clear' data-q='" + q.id + "'>Clear answer</button>" : "") +
+      (isAnswered ? "<button class='linkbtn q-clear' data-q='" + esc(answerKey(q)) + "'>Clear answer</button>" : "") +
       "</div>";
   }
 
   function wireQuestionCards(box, qs) {
     var byId = {};
-    qs.forEach(function (q) { byId[q.id] = q; });
+    qs.forEach(function (q) { byId[answerKey(q)] = q; });
     box.querySelectorAll(".q-opt").forEach(function (btn) {
       btn.onclick = function () {
         var q = byId[btn.dataset.q];
         var ans = acctSettings().answers[State.activeFuel];
         if (q.multi) {
-          var cur = Array.isArray(ans[q.id]) ? ans[q.id].slice() : [];
+          var cur = Array.isArray(ans[answerKey(q)]) ? ans[answerKey(q)].slice() : [];
           var i = cur.indexOf(btn.dataset.val);
           if (i === -1) cur.push(btn.dataset.val); else cur.splice(i, 1);
           setAnswer(q, cur);
         } else {
-          setAnswer(q, ans[q.id] === btn.dataset.val ? null : btn.dataset.val);
+          setAnswer(q, ans[answerKey(q)] === btn.dataset.val ? null : btn.dataset.val);
         }
       };
     });
@@ -1192,16 +1258,16 @@
     s.billing = { startISO: startISO, endISO: endISO };
     saveSettings();
     // Record the confirmed cycle against the files it describes.
-    ["electric", "gas"].forEach(function (f) {
-      if (State.uploadIds[f]) {
-        App.account.store.updateUpload(State.uploadIds[f],
-          { billing_start: startISO, billing_end: endISO }).catch(function () {});
-      }
+    var pending = ["electric", "gas"].map(function (f) {
+      if (!State.uploadIds[f]) return Promise.resolve();
+      return App.account.store.updateUpload(State.uploadIds[f],
+        { billing_start: startISO, billing_end: endISO }).catch(function () {});
     });
     closeBillingModal();
     regenTips();
     render();
-    refreshUploadsPanel();
+    // Wait for the writes, or the panel can still read "no cycle set".
+    Promise.all(pending).then(refreshUploadsPanel);
   }
 
   /* ---- theme ------------------------------------------------------------ */
@@ -1315,6 +1381,7 @@
       State.questions[fuel] = null;
       renderHead();
       renderUploads();
+      hydrateSaved(fuel, row.id);
     }).catch(function () {});
   }
 

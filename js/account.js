@@ -50,7 +50,8 @@
     catch (e) { return fallback; }
   }
   function localSet(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (e) { return false; }   // quota exceeded — callers must not claim success
   }
 
   /* ---- store: one interface, two backends ------------------------------- */
@@ -69,7 +70,9 @@
       }
       var cur = localGet(LOCAL_PROFILE_KEY, {}) || {};
       for (var k in patch) cur[k] = patch[k];
-      localSet(LOCAL_PROFILE_KEY, cur);
+      if (!localSet(LOCAL_PROFILE_KEY, cur)) {
+        return Promise.reject(new Error("This browser's storage is full, so your details weren't saved."));
+      }
       Acct.profile = cur;
       return Promise.resolve(cur);
     },
@@ -92,9 +95,16 @@
       row.id = "local-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
       row.created_at = new Date().toISOString();
       all.unshift(row);
-      // Guest storage is a browser quota, not a database — keep it bounded.
+      // Guest storage is a browser quota, not a database — keep it bounded, and
+      // shed the oldest entries rather than silently losing the newest one.
       while (all.length > 12) all.pop();
-      localSet(LOCAL_UPLOADS_KEY, all);
+      while (!localSet(LOCAL_UPLOADS_KEY, all)) {
+        if (all.length <= 1) {
+          return Promise.reject(new Error(
+            "This browser's storage is full, so the file was analyzed but not saved."));
+        }
+        all.pop();
+      }
       return Promise.resolve(row);
     },
 
@@ -238,13 +248,7 @@
     });
 
     wireActions({
-      guest: function () {
-        Acct.mode = "guest";
-        store.getProfile().then(function (p) {
-          Acct.profile = p || {};
-          show(p && p.zip ? "upload" : "home");
-        });
-      },
+      guest: goGuest,
       auth: function () {
         var email = (el("ob-email").value || "").trim();
         var pass = el("ob-pass").value || "";
@@ -253,19 +257,21 @@
         if (authMode === "signup" && pass.length < 8) {
           setError("Use at least 8 characters for your password."); return;
         }
-        setBusy(true, authMode === "signup" ? "Creating account…" : "Signing in…");
+        // Captured now: the user may switch tabs while the request is in flight.
+        var mode = authMode;
+        setBusy(true, mode === "signup" ? "Creating account…" : "Signing in…");
         setError("");
-        var p = authMode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
+        var p = mode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
         p.then(function (res) {
           setBusy(false);
-          if (authMode === "signup" && res && res.needsConfirmation) {
+          if (mode === "signup" && res && res.needsConfirmation) {
             renderConfirmNotice(email);
             return;
           }
           afterSignIn();
         }).catch(function (e) {
           setBusy(false);
-          setError(friendlyAuthError(e, authMode));
+          setError(friendlyAuthError(e, mode));
         });
       }
     });
@@ -293,10 +299,7 @@
       "<button class='btn btn-ghost' data-act='guest'>Explore meanwhile</button>" +
       "<button class='btn btn-primary' data-act='back'>Back to sign in</button>";
     wireActions({
-      guest: function () {
-        Acct.mode = "guest";
-        store.getProfile().then(function (p) { Acct.profile = p || {}; show(p && p.zip ? "upload" : "home"); });
-      },
+      guest: goGuest,
       back: function () { show("account"); }
     });
   }
@@ -392,7 +395,13 @@
       });
       if (!list.length) { setError("That doesn't look like a .csv file."); return; }
       setError("");
-      Acct.pendingFiles = list;
+      // Electric and gas usually arrive as two separate drops — append rather
+      // than replace, de-duplicating by name.
+      var have = {};
+      (Acct.pendingFiles || []).forEach(function (f) { have[f.name] = true; });
+      Acct.pendingFiles = (Acct.pendingFiles || []).concat(
+        list.filter(function (f) { return !have[f.name]; }));
+      list = Acct.pendingFiles;
       el("ob-filelist").innerHTML = list.map(function (f) {
         return "<div class='ob-file'>📄 " + esc(f.name) + "</div>";
       }).join("");
@@ -439,14 +448,69 @@
     if (Acct.step === "account") renderAccountStep();
     else if (Acct.step === "home") renderHomeStep();
     else if (Acct.step === "upload") renderUploadStep();
-    el("ob-close").hidden = !(Acct.step === "home" && Acct.profile && Acct.profile.zip);
+    // Anyone with data to return to must be able to leave the flow; editing home
+    // settings from the account menu must not strand them on the Upload step.
+    var canDismiss = !!(Acct.profile && Acct.profile.zip) ||
+                     !!(Acct.uploads && Acct.uploads.length);
+    el("ob-close").hidden = !(canDismiss && Acct.step !== "account");
   }
 
   /* ---- post-auth ---------------------------------------------------------- */
 
+  /* "Explore without an account" must never leave a live token behind. */
+  function goGuest() {
+    var done = api.signedIn() ? api.signOut().catch(function () {}) : Promise.resolve();
+    return done.then(function () {
+      Acct.mode = "guest"; Acct.uploads = []; Acct.currentUploadId = null;
+      renderAccountMenu();
+      return store.getProfile().then(function (p) {
+        Acct.profile = p || {};
+        show(p && p.zip ? "upload" : "home");
+      });
+    });
+  }
+
+  /*
+   * Signing up after exploring should keep the work, so copy the guest profile
+   * and uploads into the account once, and only clear the local copies after
+   * every write lands.
+   */
+  function migrateGuestData() {
+    var lp = localGet(LOCAL_PROFILE_KEY, null);
+    var lu = localGet(LOCAL_UPLOADS_KEY, []) || [];
+    if (!lp && !lu.length) return Promise.resolve();
+    var p = Promise.resolve();
+    if (lp) {
+      p = p.then(function () {
+        return api.getProfile().then(function (srv) {
+          var patch = {}, k;
+          // Only fill gaps — never overwrite what the account already says.
+          for (k in lp) if (!srv || srv[k] == null || srv[k] === "") patch[k] = lp[k];
+          return Object.keys(patch).length ? api.upsertProfile(patch) : null;
+        });
+      });
+    }
+    lu.slice().reverse().forEach(function (u) {   // oldest first, preserving order
+      p = p.then(function () {
+        var row = {}, k;
+        for (k in u) row[k] = u[k];
+        delete row.id; delete row.created_at;     // the server assigns both
+        return api.createUpload(row);
+      });
+    });
+    return p.then(function () {
+      try {
+        localStorage.removeItem(LOCAL_PROFILE_KEY);
+        localStorage.removeItem(LOCAL_UPLOADS_KEY);
+      } catch (e) {}
+    }).catch(function () { /* keep the local copies if anything failed */ });
+  }
+
   function afterSignIn() {
     Acct.mode = "user";
-    return store.getProfile().then(function (p) {
+    return migrateGuestData().then(function () {
+      return store.getProfile();
+    }).then(function (p) {
       Acct.profile = p || {};
       renderAccountMenu();
       return store.listUploads().then(function (ups) {
@@ -457,7 +521,13 @@
         App.onboardingDone({ resumeLatest: true });
       });
     }).catch(function (e) {
-      setError((e && e.message) || "Signed in, but couldn't load your account.");
+      // Never leave the app in "user" mode with an account it could not load.
+      Acct.mode = "guest"; Acct.uploads = []; Acct.profile = null;
+      api.signOut().catch(function () {});
+      renderAccountMenu();
+      show("account");
+      setError(((e && e.message) || "Signed in, but couldn't load your account.") +
+        " Please try signing in again.");
     });
   }
 
@@ -473,6 +543,7 @@
       el("account-label").textContent = name || "Account";
       el("account-avatar").textContent = (name || "?").charAt(0).toUpperCase();
       el("account-email").textContent = user.email || "";
+      el("btn-signout").textContent = "Sign out";
       el("btn-signout").hidden = false;
     } else {
       menu.hidden = false;
@@ -504,10 +575,18 @@
       if (Acct.mode !== "user") { show("account"); return; }
       api.signOut().then(function () {
         Acct.mode = "guest"; Acct.profile = null; Acct.uploads = []; Acct.currentUploadId = null;
+        // Leave nothing behind for the next person on a shared machine.
+        try {
+          ["wattwise.settings.v2", "wattwise.localProfile.v1", "wattwise.localUploads.v1"]
+            .forEach(function (k) { localStorage.removeItem(k); });
+        } catch (e) {}
         location.reload();
       });
     };
     el("ob-close").onclick = function () { hide(); };
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !el("onboard").hidden && !el("ob-close").hidden) hide();
+    });
   }
 
   /* ---- boot --------------------------------------------------------------- */
