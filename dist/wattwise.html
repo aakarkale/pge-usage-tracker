@@ -313,6 +313,7 @@ body {
 .ctx-away-hint { color: var(--text-mute); }
 
 /* ---- diagnostic questions --------------------------------------------- */
+.panel-questions { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel-2)); }
 .ctx-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .ctx-progress-bar { flex: 0 0 120px; height: 7px; border-radius: 999px; background: var(--panel-elev); overflow: hidden; }
 .ctx-progress-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-ink)); transition: width .3s ease; }
@@ -555,6 +556,17 @@ body {
         <div id="tips" class="tips"></div>
       </div>
 
+      <!-- Diagnostic questions: asked automatically once the data is analyzed -->
+      <div id="panel-context" class="panel panel-questions">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">🧠 Sharpen your tips — a few questions about your home</h2>
+            <span class="panel-sub">Wattwise spotted these patterns in your data but can't see what's behind them. Answer what you can and the recommendations above get more specific — every answer stays on your device.</span>
+          </div>
+        </div>
+        <div id="context-content" class="context-content"></div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <div>
@@ -619,17 +631,6 @@ body {
           </div>
         </div>
         <div id="weather-content" class="weather-content"></div>
-      </div>
-
-      <!-- Context: help the engine ask the right questions -->
-      <div id="panel-context" class="panel">
-        <div class="panel-head">
-          <div>
-            <h2 class="panel-title">🧠 Help sharpen your tips</h2>
-            <span class="panel-sub">A few quick answers let Wattwise explain your spikes and tailor savings advice</span>
-          </div>
-        </div>
-        <div id="context-content" class="context-content"></div>
       </div>
 
       <div class="panel">

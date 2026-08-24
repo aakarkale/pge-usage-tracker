@@ -304,6 +304,7 @@ body {
 .ctx-away-hint { color: var(--text-mute); }
 
 /* ---- diagnostic questions --------------------------------------------- */
+.panel-questions { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel-2)); }
 .ctx-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .ctx-progress-bar { flex: 0 0 120px; height: 7px; border-radius: 999px; background: var(--panel-elev); overflow: hidden; }
 .ctx-progress-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-ink)); transition: width .3s ease; }
