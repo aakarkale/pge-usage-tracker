@@ -48,6 +48,8 @@ a { color: inherit; }
   --accent-ink: #ffce6d;
   --accent-soft: rgba(255,194,75,0.14);
   --violet: #a78bfa;
+  --cool: #5eead4;          /* pre-cool / free-cooling accent */
+  --cool-fill: rgba(94,234,212,0.14);
   --radius: 16px;
   --radius-sm: 10px;
   --maxw: 1180px;
@@ -79,6 +81,7 @@ a { color: inherit; }
   --shadow: 0 12px 32px -16px rgba(15,23,42,0.28);
   --accent-ink: #b7801a;
 }
+[data-theme="light"] { --cool: #0d7d70; --cool-fill: rgba(13,125,112,0.10); }
 [data-theme="light"][data-fuel="gas"] { --accent-ink: #0d9488; }
 
 /* ---- base -------------------------------------------------------------- */
@@ -316,6 +319,62 @@ body {
 .ctx-away b { color: var(--text); }
 .ctx-away-hint { color: var(--text-mute); }
 
+/* ---- AC playbook ------------------------------------------------------- */
+.panel-acplan { border-color: color-mix(in srgb, var(--cool) 26%, var(--border)); }
+.ac-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.ac-place { font-weight: 700; }
+.ac-now { color: var(--text-dim); font-size: 13px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+.ac-thesis { color: var(--text-dim); font-size: 14.5px; max-width: 70ch; }
+.ac-thesis b { color: var(--text); }
+.ac-h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-mute); margin: 22px 0 10px; }
+
+/* forecast strip */
+.fc-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; margin-top: 14px; }
+.fc-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 4px; border-radius: 11px; background: var(--panel-2); border: 1px solid var(--border); }
+.fc-day.fc-hot { border-color: rgba(255,157,60,0.45); background: rgba(255,157,60,0.08); }
+.fc-day.fc-extreme { border-color: rgba(255,92,108,0.5); background: rgba(255,92,108,0.10); }
+.fc-day.fc-off { opacity: .72; }
+.fc-dow { font-size: 11px; color: var(--text-mute); font-weight: 600; }
+.fc-ico { font-size: 16px; line-height: 1.3; }
+.fc-hi { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fc-lo { font-size: 12px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+
+/* tables */
+.ac-table-wrap { overflow-x: auto; }
+.ac-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ac-table th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute); font-weight: 700; padding: 0 12px 8px 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.ac-table td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ac-table tr:last-child td { border-bottom: none; }
+.ac-temp { font-size: 17px; font-variant-numeric: tabular-nums; }
+.ac-table tr.ac-key .ac-temp { color: var(--cool); }
+.ac-table tr.ac-key td:first-child { font-weight: 700; }
+.ac-note { color: var(--text-mute); font-size: 12.5px; }
+.ac-count { font-size: 11px; font-weight: 700; background: var(--accent); color: #17130a; border-radius: 999px; padding: 1px 7px; margin-left: 6px; }
+.ac-band-dim td { opacity: .5; }
+.ac-only-two { color: var(--text-dim); font-size: 13.5px; margin-top: 12px; max-width: 70ch; }
+.ac-only-two b { color: var(--text); }
+
+/* night flush */
+.ac-flush { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding: 14px 16px; border-radius: 13px; background: var(--cool-fill); border: 1px solid color-mix(in srgb, var(--cool) 38%, transparent); }
+.ac-flush-off { background: var(--panel-2); border-color: var(--border); }
+.ac-flush-num { font-size: 32px; font-weight: 800; color: var(--cool); line-height: 1; font-variant-numeric: tabular-nums; }
+.ac-flush-body { color: var(--text-dim); font-size: 13.5px; }
+.ac-flush-body b { color: var(--text); }
+
+/* habits + caution */
+.ac-habits { display: flex; flex-direction: column; gap: 9px; margin-top: 20px; }
+.ac-habit { display: flex; gap: 11px; font-size: 13.5px; color: var(--text-dim); }
+.ac-habit b { color: var(--text); }
+.ac-habit-ico { flex-shrink: 0; }
+.ac-caution { padding: 11px 13px; border-radius: 11px; background: rgba(255,176,32,0.08); border: 1px solid rgba(255,176,32,0.3); }
+.ac-cta p { color: var(--text-dim); font-size: 14px; max-width: 640px; }
+.ac-noac { color: var(--text-dim); font-size: 14px; max-width: 70ch; }
+
+@media (max-width: 620px) {
+  .fc-strip { grid-template-columns: repeat(4, 1fr); }
+  .ac-table { font-size: 13px; }
+}
+
 /* ---- diagnostic questions --------------------------------------------- */
 .panel-questions { border-color: color-mix(in srgb, var(--accent) 32%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, var(--panel)), var(--panel-2)); }
 .ctx-progress { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -371,6 +430,8 @@ body {
 .focus-line { stroke: var(--focus-neutral); }
 .focus-dot { fill: var(--text); }
 .trend-line { stroke: var(--focus-neutral); }
+.setpoint-line { stroke: var(--cool); }
+.gap-fill { fill: var(--cool-fill); }
 .peak-band { fill: color-mix(in srgb, var(--text) 6%, transparent); }
 .heat-cell { transition: opacity .1s; }
 .heat-cell:hover { opacity: .78; }
@@ -558,6 +619,17 @@ body {
           </div>
         </div>
         <div id="tips" class="tips"></div>
+      </div>
+
+      <!-- AC playbook: forecast-driven thermostat schedule for this ZIP -->
+      <div id="panel-acplan" class="panel panel-acplan">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">❄️ Your AC playbook this week</h2>
+            <span class="panel-sub">Exact setpoints and times, built from your peak window and your local forecast</span>
+          </div>
+        </div>
+        <div id="acplan-content" class="acplan-content"></div>
       </div>
 
       <!-- Diagnostic questions: asked automatically once the data is analyzed -->
@@ -2492,6 +2564,16 @@ body {
     return tokens.join(" ").trim();
   }
 
+  /* Browsers surface offline/CORS/abort failures as opaque TypeErrors; turn
+     those into something a person can act on. */
+  function friendlyError(e) {
+    var msg = (e && e.message) || "";
+    if (/failed to fetch|networkerror|load failed|abort|timeout/i.test(msg) || e instanceof TypeError) {
+      return "Couldn't reach the weather service — check your connection and try again.";
+    }
+    return msg || "Weather lookup failed.";
+  }
+
   function fetchJson(url, timeoutMs) {
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, timeoutMs || 12000);
@@ -2562,6 +2644,63 @@ body {
     });
   }
 
+  /* WMO weather codes → a compact icon + label for the forecast strip. */
+  function describeCode(code) {
+    if (code == null) return { icon: "•", label: "" };
+    if (code === 0) return { icon: "☀️", label: "Clear" };
+    if (code <= 2) return { icon: "🌤️", label: "Partly cloudy" };
+    if (code === 3) return { icon: "☁️", label: "Cloudy" };
+    if (code === 45 || code === 48) return { icon: "🌫️", label: "Fog" };
+    if (code >= 51 && code <= 57) return { icon: "🌦️", label: "Drizzle" };
+    if (code >= 61 && code <= 67) return { icon: "🌧️", label: "Rain" };
+    if (code >= 71 && code <= 77) return { icon: "❄️", label: "Snow" };
+    if (code >= 80 && code <= 82) return { icon: "🌦️", label: "Showers" };
+    if (code >= 95) return { icon: "⛈️", label: "Storms" };
+    return { icon: "🌥️", label: "" };
+  }
+
+  function isoToLocalDate(iso) {
+    var p = iso.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  /*
+   * Upcoming 7-day forecast (daily high/low) plus current conditions. This is
+   * what the thermostat playbook plans against — it is about the days ahead,
+   * not the historical range the CSV covers.
+   */
+  function fetchForecast(lat, lon, unitF) {
+    var tunit = unitF === false ? "celsius" : "fahrenheit";
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&daily=temperature_2m_max,temperature_2m_min,weather_code" +
+      "&current=temperature_2m,weather_code" +
+      "&temperature_unit=" + tunit + "&timezone=auto&forecast_days=7";
+    return fetchJson(url, 14000).then(function (d) {
+      if (!d || !d.daily || !d.daily.time || !d.daily.time.length) {
+        throw new Error("No forecast was returned for this location.");
+      }
+      var days = [];
+      for (var i = 0; i < d.daily.time.length; i++) {
+        var mx = d.daily.temperature_2m_max[i];
+        var mn = d.daily.temperature_2m_min[i];
+        if (mx == null || mn == null) continue;
+        days.push({
+          dateISO: d.daily.time[i],
+          date: isoToLocalDate(d.daily.time[i]),
+          tMax: mx,
+          tMin: mn,
+          code: d.daily.weather_code ? d.daily.weather_code[i] : null
+        });
+      }
+      if (!days.length) throw new Error("No forecast was returned for this location.");
+      return {
+        days: days,
+        current: d.current ? { temp: d.current.temperature_2m, code: d.current.weather_code } : null,
+        unit: tunit === "fahrenheit" ? "°F" : "°C"
+      };
+    });
+  }
+
   /*
    * Join a fetched hourly series to the analysis. Pure & testable: pass the
    * raw {time, temp} arrays and get back the weatherJoin the UI/tips consume.
@@ -2614,13 +2753,28 @@ body {
       : geocode({ zip: zip, city: city });
 
     return locate.then(function (loc) {
-      return fetchHourly(loc.lat, loc.lon, analysis.dateRange.start, analysis.dateRange.end, opts.fahrenheit)
-        .then(function (h) {
-          var wj = join(analysis, h, loc.place, h.unit);
-          wj.lat = loc.lat; wj.lon = loc.lon; wj.zip = zip;
-          return wj;
-        });
-    });
+      // Historical (usage correlation) and forecast (thermostat plan) are
+      // independently useful, so fetch both and keep whichever succeeds.
+      var hist = fetchHourly(loc.lat, loc.lon, analysis.dateRange.start, analysis.dateRange.end, opts.fahrenheit)
+        .catch(function () { return null; });
+      var fc = fetchForecast(loc.lat, loc.lon, opts.fahrenheit)
+        .catch(function () { return null; });
+
+      return Promise.all([hist, fc]).then(function (r) {
+        var h = r[0], f = r[1];
+        if (!h && !f) {
+          throw new Error("Couldn't reach the weather service. Check your connection and try again.");
+        }
+        var wj = h
+          ? join(analysis, h, loc.place, h.unit)
+          : { place: loc.place, unit: f.unit, tempByKey: {}, daily: [],
+              corr: 0, hotThresh: null, available: false };
+        wj.lat = loc.lat; wj.lon = loc.lon; wj.zip = zip;
+        wj.forecast = f ? f.days : null;
+        wj.current = f ? f.current : null;
+        return wj;
+      });
+    }).catch(function (e) { throw new Error(friendlyError(e)); });
   }
 
   App.weather = {
@@ -2628,9 +2782,228 @@ body {
     extractCity: extractCity,
     geocode: geocode,
     fetchHourly: fetchHourly,
+    fetchForecast: fetchForecast,
+    friendlyError: friendlyError,
+    describeCode: describeCode,
     join: join,
     enrich: enrich
   };
+})(window.App = window.App || {});
+
+</script>
+  <script>
+/* ============================================================================
+ * acplan.js — The AC playbook: a concrete thermostat schedule for this house,
+ * this rate plan, and this week's weather.
+ *
+ * The idea in one line: your house is a cooler. Chill it while power is cheap,
+ * then keep the lid shut while power is expensive. Same comfort, lower bill.
+ *
+ * Three inputs decide the numbers:
+ *   1. The peak window + rate spread detected from the user's own cost column.
+ *   2. The upcoming daily highs — how hard the house has to be pre-cooled.
+ *   3. The upcoming overnight lows — whether outside air is free cooling.
+ *
+ * Setpoints are per-band rather than a formula so the advice stays inside
+ * temperatures people will actually tolerate; an aggressive "optimum" that
+ * gets overridden on day two saves nothing.
+ * ==========================================================================*/
+(function (App) {
+  "use strict";
+
+  var fmt = App.fmt, S = App.stats;
+
+  /* Comfort bands keyed on the day's forecast high (°F). */
+  var BANDS = [
+    { key: "off", max: 78, name: "Under 78°",
+      precool: null, peak: null, wake: 78, sleep: 76,
+      action: "Skip AC entirely — the night flush handles it.",
+      meaning: "Windows do the work — leave the AC off" },
+    { key: "standard", max: 88, name: "78° to 88°",
+      precool: 72, peak: 78, wake: 76, sleep: 74,
+      action: "Standard schedule — 72° pre-cool, 78° through peak.",
+      meaning: "Your default — most days land here" },
+    { key: "hot", max: 95, name: "88° to 95°",
+      precool: 70, peak: 77, wake: 75, sleep: 74,
+      action: "Pre-cool harder — 70° pre-cool, 77° through peak.",
+      meaning: "Chill deeper early, hold higher at peak" },
+    { key: "extreme", max: Infinity, name: "Above 95°",
+      precool: 68, peak: 76, wake: 74, sleep: 73,
+      action: "Heat event — 68° pre-cool, 76° through peak.",
+      meaning: "Comfort first — the bill will run higher" }
+  ];
+
+  function bandFor(high) {
+    // A non-finite high must not fall through to the hottest band.
+    if (typeof high !== "number" || !isFinite(high)) return BANDS[1];
+    for (var i = 0; i < BANDS.length; i++) {
+      if (high < BANDS[i].max) return BANDS[i];
+    }
+    return BANDS[BANDS.length - 1];
+  }
+
+  function hoursBefore(hour, n) { return ((hour - n) % 24 + 24) % 24; }
+
+  /*
+   * Estimate what a season of load-shifting is worth. We only count the peak
+   * window usage that plausibly belongs to cooling: the gap between what the
+   * house draws on hot days versus mild days. That is far more honest than
+   * assuming a flat share of the whole bill is shiftable.
+   */
+  function estimateSavings(analysis, weather) {
+    var rates = analysis.rates;
+    if (!rates.detected || !analysis.peak) return 0;
+    var spread = rates.peakRate - rates.offPeakRate;
+    if (spread <= 0) return 0;
+
+    var coolingPeakKwh = analysis.peak.avgDailyPeakUsage * 0.4; // fallback share
+    if (weather && weather.available && weather.daily && weather.daily.length && weather.hotThresh != null) {
+      var hot = [], mild = [];
+      weather.daily.forEach(function (d) {
+        if (d.tMax == null) return;
+        (d.tMax >= weather.hotThresh ? hot : mild).push(d.peakUsage || 0);
+      });
+      if (hot.length >= 2 && mild.length >= 2) {
+        var delta = S.mean(hot) - S.mean(mild);
+        if (delta > 0) coolingPeakKwh = delta;
+      }
+    }
+    // Pre-cooling moves most, not all, of that load out of the peak window.
+    var shifted = coolingPeakKwh * 0.7;
+    return Math.round(shifted * spread * 120); // ~120 cooling days a year
+  }
+
+  /*
+   * Build the playbook. Returns { available:false, reason } when there is not
+   * enough information, so the UI can show a precise prompt instead of guesses.
+   */
+  function generate(analysis, weather, profile) {
+    if (analysis.fuel !== "electric" || analysis.granularity !== "hourly") {
+      return { available: false, reason: "The AC playbook works from hourly electricity data." };
+    }
+    if (!weather || !weather.forecast || !weather.forecast.length) {
+      return { available: false, reason: "Add your ZIP code to pull the local forecast." };
+    }
+    if (profile && profile.acType === "none") {
+      return { available: false, reason: "no-ac", place: weather.place };
+    }
+
+    var rates = analysis.rates;
+    var peakStart = rates.detected ? rates.peakHours[0] : 16;
+    var peakEndHour = rates.detected
+      ? (rates.peakHours[rates.peakHours.length - 1] + 1) % 24
+      : 21;
+    var precoolHour = hoursBefore(peakStart, 3);
+    var wakeHour = 6;
+
+    var days = weather.forecast.filter(function (d) {
+      return typeof d.tMax === "number" && isFinite(d.tMax) &&
+             typeof d.tMin === "number" && isFinite(d.tMin);
+    });
+    if (!days.length) {
+      return { available: false, reason: "The forecast came back without usable temperatures." };
+    }
+    var highs = days.map(function (d) { return d.tMax; });
+    var lows = days.map(function (d) { return d.tMin; });
+    var medHigh = S.median(highs);
+    var avgLow = S.mean(lows);
+
+    // The headline schedule follows the band most of the week falls into.
+    var counts = {};
+    days.forEach(function (d) {
+      var k = bandFor(d.tMax).key;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    var typicalKey = Object.keys(counts).reduce(function (a, b) {
+      return counts[a] >= counts[b] ? a : b;
+    });
+    var typical = BANDS.filter(function (b) { return b.key === typicalKey; })[0] || bandFor(medHigh);
+    // A week of genuinely mild days still needs a fallback schedule to show.
+    var scheduleBand = typical.precool == null ? BANDS[1] : typical;
+
+    var schedule = [
+      { period: "Wake", hour: wakeHour, temp: scheduleBand.wake,
+        note: "Coast on last night's cool air" },
+      { period: "Pre-cool", hour: precoolHour, temp: scheduleBand.precool, key: true,
+        note: "Chill the house while power is cheap" },
+      { period: "Peak", hour: peakStart, temp: scheduleBand.peak, key: true,
+        note: "Keep the lid shut — AC mostly rests" },
+      { period: "Evening", hour: peakEndHour, temp: scheduleBand.sleep,
+        note: "Cheap power returns" }
+    ];
+
+    // Night flush: outside air colder than the setpoint is free air conditioning.
+    var flushGap = scheduleBand.sleep - avgLow;
+    var nightFlush = {
+      applicable: flushGap >= 6,
+      gap: flushGap,
+      avgLow: avgLow,
+      minLow: S.min(lows),
+      maxLow: S.max(lows),
+      setpoint: scheduleBand.sleep,
+      openHour: peakEndHour,
+      closeHour: 8
+    };
+
+    // Does their own data show morning cooling the night flush could erase?
+    var morningLoad = null;
+    if (analysis.byHod) {
+      var avgHourly = analysis.totals.avgDailyUsage / 24;
+      var m = [];
+      for (var h = 8; h <= 11; h++) if (analysis.byHod[h]) m.push(analysis.byHod[h].mean);
+      var mMean = S.mean(m);
+      if (mMean > avgHourly * 1.15) {
+        morningLoad = { mean: mMean, vsAvgPct: (mMean / avgHourly - 1) * 100 };
+      }
+    }
+
+    var dayRows = days.map(function (d) {
+      var b = bandFor(d.tMax);
+      return {
+        date: d.date, tMax: d.tMax, tMin: d.tMin, code: d.code,
+        band: b.key, bandName: b.name, action: b.action,
+        precool: b.precool, peak: b.peak
+      };
+    });
+
+    var hotDays = dayRows.filter(function (r) { return r.band === "hot" || r.band === "extreme"; });
+    var offDays = dayRows.filter(function (r) { return r.band === "off"; });
+
+    return {
+      available: true,
+      place: weather.place,
+      unit: weather.unit || "°F",
+      current: weather.current,
+      rates: {
+        detected: rates.detected,
+        peakRate: rates.peakRate, offPeakRate: rates.offPeakRate,
+        premiumPct: rates.premiumPct,
+        windowLabel: rates.peakWindowLabel ||
+          (fmt.hour12(peakStart) + "–" + fmt.hour12(peakEndHour))
+      },
+      peakStart: peakStart, peakEnd: peakEndHour, precoolHour: precoolHour,
+      scheduleBand: scheduleBand,
+      schedule: schedule,
+      days: days,
+      dayRows: dayRows,
+      bands: BANDS,
+      medHigh: medHigh, avgLow: avgLow,
+      hotDayCount: hotDays.length, offDayCount: offDays.length,
+      nightFlush: nightFlush,
+      morningLoad: morningLoad,
+      savings: estimateSavings(analysis, weather),
+      habits: [
+        { icon: "🪟", text: "Close blinds on west and south windows by noon. Afternoon sun through glass is a big share of what you pay to remove at 5 PM." },
+        { icon: "🌀", text: "Leave the fan switch on Auto. Air stopping between cycles is correct — On runs the blower all day for nothing." }
+      ],
+      caution: "Going from a steady " + (scheduleBand.peak - 4) + "° to " + scheduleBand.peak +
+        "° for the peak hours is a real comfort change, not a rounding error. If " + scheduleBand.peak +
+        "° is too warm, use " + (scheduleBand.peak - 1) + "° and keep most of the benefit — this only " +
+        "works if you actually stick with it."
+    };
+  }
+
+  App.acplan = { generate: generate, bandFor: bandFor, BANDS: BANDS };
 })(window.App = window.App || {});
 
 </script>
@@ -3269,8 +3642,103 @@ body {
     container.appendChild(svg);
   }
 
+  /* ---- forecast lines (high / low / setpoint) --------------------------- */
+  /*
+   * The story this chart tells: the vertical gap between the overnight-low
+   * line and your setpoint line is free cooling you can let into the house.
+   */
+  function forecastLines(container, opts) {
+    clear(container);
+    var days = opts.days || [];
+    if (days.length < 2) return;
+    var W = container.clientWidth || 600;
+    var H = opts.height || 250;
+    var m = { t: 16, r: 14, b: 44, l: 42 };
+    var iw = W - m.l - m.r, ih = H - m.t - m.b;
+
+    var all = [];
+    days.forEach(function (d) { all.push(d.tMax, d.tMin); });
+    all.push(opts.setpoint);
+    var vmin = Math.floor((Math.min.apply(null, all) - 8) / 10) * 10;
+    var vmax = Math.ceil((Math.max.apply(null, all) + 8) / 10) * 10;
+
+    function X(i) { return m.l + (i / (days.length - 1)) * iw; }
+    function Y(v) { return m.t + ih - ((v - vmin) / (vmax - vmin)) * ih; }
+
+    var svg = el("svg", { width: W, height: H, class: "chart-svg" });
+
+    niceTicks(vmin, vmax, 4).forEach(function (v) {
+      var y = Y(v);
+      svg.appendChild(el("line", { x1: m.l, y1: y, x2: m.l + iw, y2: y, class: "grid-line" }));
+      var lbl = el("text", { x: m.l - 8, y: y + 4, class: "axis-label", "text-anchor": "end" });
+      lbl.textContent = fmt.num(v, 0) + "°";
+      svg.appendChild(lbl);
+    });
+
+    // Shade the free-cooling gap between the setpoint and the overnight lows.
+    var gapD = "";
+    days.forEach(function (d, i) { gapD += (i === 0 ? "M " : " L ") + X(i) + " " + Y(opts.setpoint); });
+    for (var j = days.length - 1; j >= 0; j--) gapD += " L " + X(j) + " " + Y(days[j].tMin);
+    svg.appendChild(el("path", { d: gapD + " Z", stroke: "none", class: "gap-fill" }));
+
+    var SERIES = [
+      { key: "tMax", color: "#6ea8ff", label: "Daytime high" },
+      { key: "tMin", color: "#ff9d5c", label: "Overnight low" }
+    ];
+    SERIES.forEach(function (s) {
+      var d = "";
+      days.forEach(function (day, i) { d += (i === 0 ? "M " : " L ") + X(i) + " " + Y(day[s.key]); });
+      svg.appendChild(el("path", { d: d, fill: "none", stroke: s.color, "stroke-width": 2.25,
+        "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      days.forEach(function (day, i) {
+        svg.appendChild(el("circle", { cx: X(i), cy: Y(day[s.key]), r: 3, fill: s.color }));
+      });
+    });
+
+    // Flat setpoint reference line.
+    svg.appendChild(el("line", { x1: X(0), y1: Y(opts.setpoint), x2: X(days.length - 1),
+      y2: Y(opts.setpoint), "stroke-width": 2, "stroke-dasharray": "5 4", class: "setpoint-line" }));
+
+    days.forEach(function (day, i) {
+      var xl = el("text", { x: X(i), y: H - 26, class: "axis-label", "text-anchor": "middle" });
+      xl.textContent = fmt.DOW_SHORT[day.date.getDay()];
+      svg.appendChild(xl);
+      var xd = el("text", { x: X(i), y: H - 14, class: "axis-label", "text-anchor": "middle",
+        style: "opacity:.65" });
+      xd.textContent = day.date.getDate();
+      svg.appendChild(xd);
+
+      // Invisible hover column for a per-day tooltip.
+      var half = iw / (days.length - 1) / 2;
+      var hit = el("rect", { x: X(i) - half, y: m.t, width: half * 2, height: ih,
+        fill: "transparent", style: "cursor:pointer" });
+      hit.addEventListener("mousemove", function (ev) {
+        var gap = opts.setpoint - day.tMin;
+        showTip("<div class='tt-title'>" + fmt.dateDow(day.date) + "</div>" +
+          "<div class='tt-row'><span class='tt-key'>High</span><span class='tt-val'>" + fmt.num(day.tMax, 0) + "°</span></div>" +
+          "<div class='tt-row'><span class='tt-key'>Low</span><span class='tt-val'>" + fmt.num(day.tMin, 0) + "°</span></div>" +
+          (gap > 0 ? "<div class='tt-sub'>" + fmt.num(gap, 0) + "° of free cooling overnight</div>" : ""),
+          ev.clientX, ev.clientY);
+      });
+      hit.addEventListener("mouseleave", hideTip);
+      svg.appendChild(hit);
+    });
+
+    container.appendChild(svg);
+
+    var legend = document.createElement("div");
+    legend.className = "split-legend";
+    legend.innerHTML =
+      "<div class='split-legend-item'><span class='dot' style='background:#6ea8ff'></span>Daytime high</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:#ff9d5c'></span>Overnight low</div>" +
+      "<div class='split-legend-item'><span class='dot' style='background:var(--cool)'></span>Your " +
+        fmt.num(opts.setpoint, 0) + "° setting</div>";
+    container.appendChild(legend);
+  }
+
   App.charts = {
     palette: palette,
+    forecastLines: forecastLines,
     heatColor: heatColor,
     timeSeries: timeSeries,
     heatmap: heatmap,
@@ -3399,7 +3867,7 @@ body {
     applyQuestionAnnotation(q, value);
     saveSettings();
     regenTips();
-    renderKpis(); renderInsights(); renderSavings(); renderTips();
+    renderKpis(); renderInsights(); renderSavings(); renderTips(); renderAcPlan();
     renderEventFilters(); renderEvents(); renderContext();
   }
 
@@ -3837,7 +4305,7 @@ body {
       var mildPeak = App.stats.mean(mild.map(function (d) { return d.peakUsage || 0; }));
       var strength = Math.abs(wj.corr) >= 0.6 ? "strong" : Math.abs(wj.corr) >= 0.35 ? "moderate" : "weak";
       box.innerHTML =
-        "<div class='wx-head'><span class='wx-place'>📍 " + (wj.place || "your area") + "</span>" +
+        "<div class='wx-head'><span class='wx-place'>📍 " + esc(wj.place || "your area") + "</span>" +
           "<span class='wx-corr'>Usage ↔ temperature: <b>" + strength + "</b> (r = " +
           fmt.num(wj.corr, 2) + ")</span></div>" +
         "<div class='wx-grid'><div id='wx-scatter' class='chart-holder'></div>" +
@@ -3886,11 +4354,167 @@ body {
       State.weather[fuel] = wj;
       State.weatherStatus[fuel] = wj.available ? "" : "No weather data was available for that location/date range.";
       regenTips();
-      renderWeather(a); renderTips(); renderSavings();
+      renderWeather(a); renderTips(); renderSavings(); renderAcPlan();
     }).catch(function (e) {
       State.weatherStatus[fuel] = (e && e.message ? e.message : "Weather lookup failed.") +
         " You can still use every other feature.";
-      renderWeather(a);
+      renderWeather(a); renderAcPlan();
+    });
+  }
+
+  /* ---- rendering: AC playbook ------------------------------------------ */
+
+  /* Place names come from a third-party geocoder — never trust them as markup. */
+  function esc(str) {
+    return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function acRow(cells, cls) {
+    return "<tr" + (cls ? " class='" + cls + "'" : "") + ">" +
+      cells.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
+  }
+
+  function renderAcPlan() {
+    var box = document.getElementById("acplan-content");
+    var panel = document.getElementById("panel-acplan");
+    var a = State.data[State.activeFuel].analysis;
+
+    if (a.fuel !== "electric" || a.granularity !== "hourly") { panel.hidden = true; return; }
+    panel.hidden = false;
+
+    var s = acctSettings();
+    var wj = State.weather[State.activeFuel];
+    var plan = App.acplan.generate(a, wj, s.profile);
+
+    // Not enough info yet — ask for the one thing we need.
+    if (!plan.available) {
+      if (plan.reason === "no-ac") {
+        box.innerHTML = "<div class='ac-noac'>You told us there's no AC here, so there's no schedule to tune. " +
+          "The night-flush habit below is still the whole game: open up once it's cooler outside than in, " +
+          "close by 8 AM, and keep blinds shut on west and south windows through the afternoon.</div>";
+        return;
+      }
+      var status = State.weatherStatus[State.activeFuel];
+      var zipGuess = App.weather.extractZip(a.meta.address);
+      box.innerHTML =
+        "<div class='ac-cta'><p>Enter your ZIP and Wattwise pulls your local forecast, then builds a " +
+          "thermostat schedule around your " + (a.rates.detected ? a.rates.peakWindowLabel : "peak") +
+          " window — exact temperatures, exact times.</p>" +
+        "<div class='wx-form'>" +
+          "<input id='ac-zip' class='input' type='text' inputmode='numeric' maxlength='5' placeholder='ZIP' value='" +
+            (zipGuess || "") + "' />" +
+          "<button id='ac-go' class='btn btn-primary'" + (status === "loading" ? " disabled" : "") + ">" +
+            (status === "loading" ? "Fetching…" : "Build my AC schedule") + "</button>" +
+        "</div>" +
+        (status && status !== "loading" ? "<div class='wx-status'>" + status + "</div>" : "") +
+        "</div>";
+      var go = document.getElementById("ac-go");
+      if (go) go.onclick = function () { fetchWeather((document.getElementById("ac-zip").value || "").trim()); };
+      return;
+    }
+
+    var u = plan.unit;
+    var r = plan.rates;
+
+    // 1. The whole idea in one line.
+    var thesis = r.detected
+      ? "Power costs you <b>" + fmt.usd(r.peakRate, 2) + "</b> from " + r.windowLabel + " and <b>" +
+        fmt.usd(r.offPeakRate, 2) + "</b> the rest of the day. Same cooling, different price — so cool early " +
+        "and let the house coast through the expensive part."
+      : "Cool the house early and let it coast through the late afternoon, when both the heat and the grid peak.";
+
+    // 2. Forecast strip.
+    var strip = plan.days.map(function (d) {
+      var w = App.weather.describeCode(d.code);
+      var b = App.acplan.bandFor(d.tMax);
+      return "<div class='fc-day fc-" + b.key + "'>" +
+        "<span class='fc-dow'>" + fmt.DOW_SHORT[d.date.getDay()] + " " + d.date.getDate() + "</span>" +
+        "<span class='fc-ico'>" + w.icon + "</span>" +
+        "<span class='fc-hi'>" + fmt.num(d.tMax, 0) + "°</span>" +
+        "<span class='fc-lo'>" + fmt.num(d.tMin, 0) + "°</span>" +
+        "</div>";
+    }).join("");
+
+    // 3. The schedule — the hero of this panel.
+    var schedRows = plan.schedule.map(function (row) {
+      return acRow([
+        row.period,
+        fmt.hour12(row.hour),
+        "<b class='ac-temp'>" + row.temp + "°</b>",
+        "<span class='ac-note'>" + row.note + "</span>"
+      ], row.key ? "ac-key" : "");
+    }).join("");
+
+    // 4. Per-forecast adjustment bands, marked with how many days hit each.
+    var counts = {};
+    plan.dayRows.forEach(function (d) { counts[d.band] = (counts[d.band] || 0) + 1; });
+    var bandRows = plan.bands.map(function (b) {
+      var n = counts[b.key] || 0;
+      return acRow([
+        b.name + (n ? " <span class='ac-count'>" + n + " day" + (n > 1 ? "s" : "") + "</span>" : ""),
+        b.precool == null ? "—" : "<b>" + b.precool + "°</b> at " + fmt.hour12(plan.precoolHour),
+        b.peak == null ? "—" : "<b>" + b.peak + "°</b> at " + fmt.hour12(plan.peakStart),
+        "<span class='ac-note'>" + b.meaning + "</span>"
+      ], n ? "ac-band-active" : "ac-band-dim");
+    }).join("");
+
+    // 5. Night flush — usually the biggest free win.
+    var nf = plan.nightFlush;
+    var flushHtml = nf.applicable
+      ? "<div class='ac-flush'><div class='ac-flush-num'>" + fmt.num(nf.gap, 0) + "°</div>" +
+        "<div class='ac-flush-body'><b>Free air conditioning every night.</b> Lows run " +
+        fmt.num(nf.minLow, 0) + "–" + fmt.num(nf.maxLow, 0) + "° this week, well under your " +
+        nf.setpoint + "° setting. Open windows around " + fmt.hour12(nf.openHour) +
+        " once it's cooler outside than in, and close them by " + fmt.hour12(nf.closeHour) +
+        " before the outside air passes your indoor temperature." +
+        (plan.morningLoad ? " On most days that alone handles your mornings — it may erase the " +
+          fmt.pct(plan.morningLoad.vsAvgPct, 0) + "-above-average cooling we see in your 8 AM–noon data." : "") +
+        " It costs nothing, so do it first.</div></div>"
+      : "<div class='ac-flush ac-flush-off'><div class='ac-flush-body'>Overnight lows average " +
+        fmt.num(nf.avgLow, 0) + "°, only " + fmt.num(Math.max(0, nf.gap), 0) + "° below your setting, so " +
+        "night-flushing won't do much this week. Lean on the pre-cool schedule instead.</div></div>";
+
+    box.innerHTML =
+      "<div class='ac-head'>" +
+        "<span class='ac-place'>📍 " + esc(plan.place || "your area") + "</span>" +
+        (plan.current && plan.current.temp != null
+          ? "<span class='ac-now'>" + fmt.num(plan.current.temp, 0) + "° now</span>" : "") +
+        (plan.savings > 0 ? "<span class='save-chip'>~" + fmt.usd(plan.savings, 0) + "/season</span>" : "") +
+      "</div>" +
+      "<p class='ac-thesis'>" + thesis + "</p>" +
+      "<div class='fc-strip'>" + strip + "</div>" +
+
+      "<h3 class='ac-h3'>Set your thermostat to this</h3>" +
+      "<div class='ac-table-wrap'><table class='ac-table'>" +
+        "<thead><tr><th>Period</th><th>Time</th><th>Set to</th><th>Why</th></tr></thead>" +
+        "<tbody>" + schedRows + "</tbody></table></div>" +
+      "<p class='ac-only-two'>Only two numbers really matter: <b>" + plan.scheduleBand.precool + "° at " +
+        fmt.hour12(plan.precoolHour) + "</b> is the chill-the-cooler step, done while power is cheap. <b>" +
+        plan.scheduleBand.peak + "° at " + fmt.hour12(plan.peakStart) + "</b> is the keep-the-lid-shut step — " +
+        "the AC mostly rests through the expensive hours and the house drifts up slowly." +
+      "</p>" +
+
+      "<h3 class='ac-h3'>The gap between the lines is free cooling</h3>" +
+      "<div id='ac-chart' class='chart-holder'></div>" +
+      flushHtml +
+
+      "<h3 class='ac-h3'>Adjust for the day's forecast</h3>" +
+      "<div class='ac-table-wrap'><table class='ac-table'>" +
+        "<thead><tr><th>If the high is</th><th>Pre-cool</th><th>At peak</th><th>What it means</th></tr></thead>" +
+        "<tbody>" + bandRows + "</tbody></table></div>" +
+
+      "<div class='ac-habits'>" +
+        plan.habits.map(function (h) {
+          return "<div class='ac-habit'><span class='ac-habit-ico'>" + h.icon + "</span><span>" + h.text + "</span></div>";
+        }).join("") +
+        "<div class='ac-habit ac-caution'><span class='ac-habit-ico'>⚠️</span><span><b>One caution.</b> " +
+          plan.caution + "</span></div>" +
+      "</div>";
+
+    charts.forecastLines(document.getElementById("ac-chart"), {
+      days: plan.days, setpoint: plan.scheduleBand.sleep, height: 240
     });
   }
 
@@ -4106,6 +4730,7 @@ body {
     renderInsights();
     renderSavings();
     renderTips();
+    renderAcPlan();
     renderCharts();
     renderContext();
     renderEventFilters();

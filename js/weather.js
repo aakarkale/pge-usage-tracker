@@ -33,6 +33,16 @@
     return tokens.join(" ").trim();
   }
 
+  /* Browsers surface offline/CORS/abort failures as opaque TypeErrors; turn
+     those into something a person can act on. */
+  function friendlyError(e) {
+    var msg = (e && e.message) || "";
+    if (/failed to fetch|networkerror|load failed|abort|timeout/i.test(msg) || e instanceof TypeError) {
+      return "Couldn't reach the weather service — check your connection and try again.";
+    }
+    return msg || "Weather lookup failed.";
+  }
+
   function fetchJson(url, timeoutMs) {
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, timeoutMs || 12000);
@@ -103,6 +113,63 @@
     });
   }
 
+  /* WMO weather codes → a compact icon + label for the forecast strip. */
+  function describeCode(code) {
+    if (code == null) return { icon: "•", label: "" };
+    if (code === 0) return { icon: "☀️", label: "Clear" };
+    if (code <= 2) return { icon: "🌤️", label: "Partly cloudy" };
+    if (code === 3) return { icon: "☁️", label: "Cloudy" };
+    if (code === 45 || code === 48) return { icon: "🌫️", label: "Fog" };
+    if (code >= 51 && code <= 57) return { icon: "🌦️", label: "Drizzle" };
+    if (code >= 61 && code <= 67) return { icon: "🌧️", label: "Rain" };
+    if (code >= 71 && code <= 77) return { icon: "❄️", label: "Snow" };
+    if (code >= 80 && code <= 82) return { icon: "🌦️", label: "Showers" };
+    if (code >= 95) return { icon: "⛈️", label: "Storms" };
+    return { icon: "🌥️", label: "" };
+  }
+
+  function isoToLocalDate(iso) {
+    var p = iso.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  /*
+   * Upcoming 7-day forecast (daily high/low) plus current conditions. This is
+   * what the thermostat playbook plans against — it is about the days ahead,
+   * not the historical range the CSV covers.
+   */
+  function fetchForecast(lat, lon, unitF) {
+    var tunit = unitF === false ? "celsius" : "fahrenheit";
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon +
+      "&daily=temperature_2m_max,temperature_2m_min,weather_code" +
+      "&current=temperature_2m,weather_code" +
+      "&temperature_unit=" + tunit + "&timezone=auto&forecast_days=7";
+    return fetchJson(url, 14000).then(function (d) {
+      if (!d || !d.daily || !d.daily.time || !d.daily.time.length) {
+        throw new Error("No forecast was returned for this location.");
+      }
+      var days = [];
+      for (var i = 0; i < d.daily.time.length; i++) {
+        var mx = d.daily.temperature_2m_max[i];
+        var mn = d.daily.temperature_2m_min[i];
+        if (mx == null || mn == null) continue;
+        days.push({
+          dateISO: d.daily.time[i],
+          date: isoToLocalDate(d.daily.time[i]),
+          tMax: mx,
+          tMin: mn,
+          code: d.daily.weather_code ? d.daily.weather_code[i] : null
+        });
+      }
+      if (!days.length) throw new Error("No forecast was returned for this location.");
+      return {
+        days: days,
+        current: d.current ? { temp: d.current.temperature_2m, code: d.current.weather_code } : null,
+        unit: tunit === "fahrenheit" ? "°F" : "°C"
+      };
+    });
+  }
+
   /*
    * Join a fetched hourly series to the analysis. Pure & testable: pass the
    * raw {time, temp} arrays and get back the weatherJoin the UI/tips consume.
@@ -155,13 +222,28 @@
       : geocode({ zip: zip, city: city });
 
     return locate.then(function (loc) {
-      return fetchHourly(loc.lat, loc.lon, analysis.dateRange.start, analysis.dateRange.end, opts.fahrenheit)
-        .then(function (h) {
-          var wj = join(analysis, h, loc.place, h.unit);
-          wj.lat = loc.lat; wj.lon = loc.lon; wj.zip = zip;
-          return wj;
-        });
-    });
+      // Historical (usage correlation) and forecast (thermostat plan) are
+      // independently useful, so fetch both and keep whichever succeeds.
+      var hist = fetchHourly(loc.lat, loc.lon, analysis.dateRange.start, analysis.dateRange.end, opts.fahrenheit)
+        .catch(function () { return null; });
+      var fc = fetchForecast(loc.lat, loc.lon, opts.fahrenheit)
+        .catch(function () { return null; });
+
+      return Promise.all([hist, fc]).then(function (r) {
+        var h = r[0], f = r[1];
+        if (!h && !f) {
+          throw new Error("Couldn't reach the weather service. Check your connection and try again.");
+        }
+        var wj = h
+          ? join(analysis, h, loc.place, h.unit)
+          : { place: loc.place, unit: f.unit, tempByKey: {}, daily: [],
+              corr: 0, hotThresh: null, available: false };
+        wj.lat = loc.lat; wj.lon = loc.lon; wj.zip = zip;
+        wj.forecast = f ? f.days : null;
+        wj.current = f ? f.current : null;
+        return wj;
+      });
+    }).catch(function (e) { throw new Error(friendlyError(e)); });
   }
 
   App.weather = {
@@ -169,6 +251,9 @@
     extractCity: extractCity,
     geocode: geocode,
     fetchHourly: fetchHourly,
+    fetchForecast: fetchForecast,
+    friendlyError: friendlyError,
+    describeCode: describeCode,
     join: join,
     enrich: enrich
   };

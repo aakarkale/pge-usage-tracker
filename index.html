@@ -128,6 +128,17 @@
         <div id="tips" class="tips"></div>
       </div>
 
+      <!-- AC playbook: forecast-driven thermostat schedule for this ZIP -->
+      <div id="panel-acplan" class="panel panel-acplan">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">❄️ Your AC playbook this week</h2>
+            <span class="panel-sub">Exact setpoints and times, built from your peak window and your local forecast</span>
+          </div>
+        </div>
+        <div id="acplan-content" class="acplan-content"></div>
+      </div>
+
       <!-- Diagnostic questions: asked automatically once the data is analyzed -->
       <div id="panel-context" class="panel panel-questions">
         <div class="panel-head">
@@ -260,6 +271,7 @@
   <script src="js/tips.js"></script>
   <script src="js/questions.js"></script>
   <script src="js/weather.js"></script>
+  <script src="js/acplan.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/app.js"></script>
 </body>
