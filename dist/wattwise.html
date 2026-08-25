@@ -4029,6 +4029,13 @@ body {
     return msg || "Something went wrong.";
   }
 
+  /* Only a server-side rejection means the stored credential is actually dead.
+     A network failure, the abort timeout, 429 or 5xx all leave the refresh
+     token perfectly valid — wiping it there logs people out for a blip. */
+  function isAuthRejection(e) {
+    return !!(e && (e.status === 400 || e.status === 401 || e.status === 403));
+  }
+
   function request(path, opts) {
     opts = opts || {};
     var headers = { apikey: KEY };
@@ -4083,8 +4090,8 @@ body {
       return s;
     }).catch(function (e) {
       refreshing = null;
-      saveSession(null);          // refresh token is dead; force a fresh sign-in
-      throw e;
+      if (isAuthRejection(e)) saveSession(null);   // genuinely dead — sign in again
+      throw e;                                     // transient — keep the token
     });
     return refreshing;
   }
@@ -4132,10 +4139,15 @@ body {
 
   function signOut() {
     var had = signedIn();
-    var done = had
-      ? authed("/auth/v1/logout", { method: "POST" }).catch(function () { /* local sign-out regardless */ })
-      : Promise.resolve();
-    return done.then(function () { saveSession(null); });
+    // Clear locally FIRST: on a shared machine, sign-out must be immediate and
+    // must not depend on the network being reachable.
+    var token = session && session.access_token;
+    saveSession(null);
+    if (!had) return Promise.resolve();
+    return request("/auth/v1/logout", {
+      method: "POST", auth: false, timeout: 5000,
+      headers: { Authorization: "Bearer " + token }
+    }).catch(function () { /* best effort — already signed out locally */ });
   }
 
   /* Confirm the stored session still works, and refresh the cached user. */
@@ -4144,9 +4156,10 @@ body {
     return authed("/auth/v1/user", {}).then(function (u) {
       if (u && u.id) { session.user = u; saveSession(session); }
       return session;
-    }).catch(function () {
-      saveSession(null);
-      return null;
+    }).catch(function (e) {
+      // Opening the app offline must not sign you out.
+      if (isAuthRejection(e)) { saveSession(null); return null; }
+      return session;
     });
   }
 
@@ -4339,7 +4352,8 @@ body {
     catch (e) { return fallback; }
   }
   function localSet(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch (e) { return false; }   // quota exceeded — callers must not claim success
   }
 
   /* ---- store: one interface, two backends ------------------------------- */
@@ -4358,7 +4372,9 @@ body {
       }
       var cur = localGet(LOCAL_PROFILE_KEY, {}) || {};
       for (var k in patch) cur[k] = patch[k];
-      localSet(LOCAL_PROFILE_KEY, cur);
+      if (!localSet(LOCAL_PROFILE_KEY, cur)) {
+        return Promise.reject(new Error("This browser's storage is full, so your details weren't saved."));
+      }
       Acct.profile = cur;
       return Promise.resolve(cur);
     },
@@ -4381,9 +4397,16 @@ body {
       row.id = "local-" + Date.now() + "-" + Math.floor(Math.random() * 1e6);
       row.created_at = new Date().toISOString();
       all.unshift(row);
-      // Guest storage is a browser quota, not a database — keep it bounded.
+      // Guest storage is a browser quota, not a database — keep it bounded, and
+      // shed the oldest entries rather than silently losing the newest one.
       while (all.length > 12) all.pop();
-      localSet(LOCAL_UPLOADS_KEY, all);
+      while (!localSet(LOCAL_UPLOADS_KEY, all)) {
+        if (all.length <= 1) {
+          return Promise.reject(new Error(
+            "This browser's storage is full, so the file was analyzed but not saved."));
+        }
+        all.pop();
+      }
       return Promise.resolve(row);
     },
 
@@ -4527,13 +4550,7 @@ body {
     });
 
     wireActions({
-      guest: function () {
-        Acct.mode = "guest";
-        store.getProfile().then(function (p) {
-          Acct.profile = p || {};
-          show(p && p.zip ? "upload" : "home");
-        });
-      },
+      guest: goGuest,
       auth: function () {
         var email = (el("ob-email").value || "").trim();
         var pass = el("ob-pass").value || "";
@@ -4542,19 +4559,21 @@ body {
         if (authMode === "signup" && pass.length < 8) {
           setError("Use at least 8 characters for your password."); return;
         }
-        setBusy(true, authMode === "signup" ? "Creating account…" : "Signing in…");
+        // Captured now: the user may switch tabs while the request is in flight.
+        var mode = authMode;
+        setBusy(true, mode === "signup" ? "Creating account…" : "Signing in…");
         setError("");
-        var p = authMode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
+        var p = mode === "signup" ? api.signUp(email, pass, name) : api.signIn(email, pass);
         p.then(function (res) {
           setBusy(false);
-          if (authMode === "signup" && res && res.needsConfirmation) {
+          if (mode === "signup" && res && res.needsConfirmation) {
             renderConfirmNotice(email);
             return;
           }
           afterSignIn();
         }).catch(function (e) {
           setBusy(false);
-          setError(friendlyAuthError(e, authMode));
+          setError(friendlyAuthError(e, mode));
         });
       }
     });
@@ -4582,10 +4601,7 @@ body {
       "<button class='btn btn-ghost' data-act='guest'>Explore meanwhile</button>" +
       "<button class='btn btn-primary' data-act='back'>Back to sign in</button>";
     wireActions({
-      guest: function () {
-        Acct.mode = "guest";
-        store.getProfile().then(function (p) { Acct.profile = p || {}; show(p && p.zip ? "upload" : "home"); });
-      },
+      guest: goGuest,
       back: function () { show("account"); }
     });
   }
@@ -4681,7 +4697,13 @@ body {
       });
       if (!list.length) { setError("That doesn't look like a .csv file."); return; }
       setError("");
-      Acct.pendingFiles = list;
+      // Electric and gas usually arrive as two separate drops — append rather
+      // than replace, de-duplicating by name.
+      var have = {};
+      (Acct.pendingFiles || []).forEach(function (f) { have[f.name] = true; });
+      Acct.pendingFiles = (Acct.pendingFiles || []).concat(
+        list.filter(function (f) { return !have[f.name]; }));
+      list = Acct.pendingFiles;
       el("ob-filelist").innerHTML = list.map(function (f) {
         return "<div class='ob-file'>📄 " + esc(f.name) + "</div>";
       }).join("");
@@ -4728,14 +4750,69 @@ body {
     if (Acct.step === "account") renderAccountStep();
     else if (Acct.step === "home") renderHomeStep();
     else if (Acct.step === "upload") renderUploadStep();
-    el("ob-close").hidden = !(Acct.step === "home" && Acct.profile && Acct.profile.zip);
+    // Anyone with data to return to must be able to leave the flow; editing home
+    // settings from the account menu must not strand them on the Upload step.
+    var canDismiss = !!(Acct.profile && Acct.profile.zip) ||
+                     !!(Acct.uploads && Acct.uploads.length);
+    el("ob-close").hidden = !(canDismiss && Acct.step !== "account");
   }
 
   /* ---- post-auth ---------------------------------------------------------- */
 
+  /* "Explore without an account" must never leave a live token behind. */
+  function goGuest() {
+    var done = api.signedIn() ? api.signOut().catch(function () {}) : Promise.resolve();
+    return done.then(function () {
+      Acct.mode = "guest"; Acct.uploads = []; Acct.currentUploadId = null;
+      renderAccountMenu();
+      return store.getProfile().then(function (p) {
+        Acct.profile = p || {};
+        show(p && p.zip ? "upload" : "home");
+      });
+    });
+  }
+
+  /*
+   * Signing up after exploring should keep the work, so copy the guest profile
+   * and uploads into the account once, and only clear the local copies after
+   * every write lands.
+   */
+  function migrateGuestData() {
+    var lp = localGet(LOCAL_PROFILE_KEY, null);
+    var lu = localGet(LOCAL_UPLOADS_KEY, []) || [];
+    if (!lp && !lu.length) return Promise.resolve();
+    var p = Promise.resolve();
+    if (lp) {
+      p = p.then(function () {
+        return api.getProfile().then(function (srv) {
+          var patch = {}, k;
+          // Only fill gaps — never overwrite what the account already says.
+          for (k in lp) if (!srv || srv[k] == null || srv[k] === "") patch[k] = lp[k];
+          return Object.keys(patch).length ? api.upsertProfile(patch) : null;
+        });
+      });
+    }
+    lu.slice().reverse().forEach(function (u) {   // oldest first, preserving order
+      p = p.then(function () {
+        var row = {}, k;
+        for (k in u) row[k] = u[k];
+        delete row.id; delete row.created_at;     // the server assigns both
+        return api.createUpload(row);
+      });
+    });
+    return p.then(function () {
+      try {
+        localStorage.removeItem(LOCAL_PROFILE_KEY);
+        localStorage.removeItem(LOCAL_UPLOADS_KEY);
+      } catch (e) {}
+    }).catch(function () { /* keep the local copies if anything failed */ });
+  }
+
   function afterSignIn() {
     Acct.mode = "user";
-    return store.getProfile().then(function (p) {
+    return migrateGuestData().then(function () {
+      return store.getProfile();
+    }).then(function (p) {
       Acct.profile = p || {};
       renderAccountMenu();
       return store.listUploads().then(function (ups) {
@@ -4746,7 +4823,13 @@ body {
         App.onboardingDone({ resumeLatest: true });
       });
     }).catch(function (e) {
-      setError((e && e.message) || "Signed in, but couldn't load your account.");
+      // Never leave the app in "user" mode with an account it could not load.
+      Acct.mode = "guest"; Acct.uploads = []; Acct.profile = null;
+      api.signOut().catch(function () {});
+      renderAccountMenu();
+      show("account");
+      setError(((e && e.message) || "Signed in, but couldn't load your account.") +
+        " Please try signing in again.");
     });
   }
 
@@ -4762,6 +4845,7 @@ body {
       el("account-label").textContent = name || "Account";
       el("account-avatar").textContent = (name || "?").charAt(0).toUpperCase();
       el("account-email").textContent = user.email || "";
+      el("btn-signout").textContent = "Sign out";
       el("btn-signout").hidden = false;
     } else {
       menu.hidden = false;
@@ -4793,10 +4877,18 @@ body {
       if (Acct.mode !== "user") { show("account"); return; }
       api.signOut().then(function () {
         Acct.mode = "guest"; Acct.profile = null; Acct.uploads = []; Acct.currentUploadId = null;
+        // Leave nothing behind for the next person on a shared machine.
+        try {
+          ["wattwise.settings.v2", "wattwise.localProfile.v1", "wattwise.localUploads.v1"]
+            .forEach(function (k) { localStorage.removeItem(k); });
+        } catch (e) {}
         location.reload();
       });
     };
     el("ob-close").onclick = function () { hide(); };
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !el("onboard").hidden && !el("ob-close").hidden) hide();
+    });
   }
 
   /* ---- boot --------------------------------------------------------------- */
@@ -4915,6 +5007,10 @@ body {
     return s;
   }
 
+  /* A question about "the spike on Jul 14" must not answer itself for a
+     different upload whose spike is a different day. */
+  function answerKey(q) { return q.dateKey ? q.id + "@" + q.dateKey : q.id; }
+
   function activeQuestions() {
     if (!State.questions[State.activeFuel]) {
       State.questions[State.activeFuel] =
@@ -4935,7 +5031,7 @@ body {
       var s = State.settings[State.accountKey];
       var ans = (s && s.answers && s.answers[fuel]) || {};
       State.questions[fuel].forEach(function (q) {
-        var a = ans[q.id];
+        var a = ans[answerKey(q)];
         if (a == null) return;
         var vals = q.multi ? (a || []) : [a];
         q.options.forEach(function (o) {
@@ -4968,11 +5064,11 @@ body {
 
   function setAnswer(q, value) {
     var ans = acctSettings().answers[State.activeFuel];
-    ans[q.id] = value;
+    ans[answerKey(q)] = value;
     acctSettings().profile = deriveProfile();
     applyQuestionAnnotation(q, value);
     saveSettings();
-    App.account.store.saveAnswer(State.activeFuel, q.id, value);
+    App.account.store.saveAnswer(State.activeFuel, answerKey(q), value);
     regenTips();
     renderKpis(); renderInsights(); renderSavings(); renderTips(); renderAcPlan();
     renderEventFilters(); renderEvents(); renderContext();
@@ -5083,6 +5179,9 @@ body {
   /* Persist an ingested file so it shows up in "Your uploads" next visit. */
   function persistUpload(fuel) {
     var d = State.data[fuel];
+    // What is on screen is a NEW file until it is saved; never let the previous
+    // upload's id stand in for it, or its cycle lands on the wrong row.
+    State.uploadIds[fuel] = null;
     if (!d || !d.csv) return Promise.resolve(null);
     var a = d.analysis;
     return App.account.store.createUpload({
@@ -5099,11 +5198,14 @@ body {
       total_cost: Math.round(a.totals.cost * 100) / 100,
       csv: d.csv
     }).then(function (row) {
-      if (row) State.uploadIds[fuel] = row.id;
+      State.uploadIds[fuel] = row ? row.id : null;
       return row;
     }).catch(function (e) {
-      // A failed save must never block the analysis the user is looking at.
+      // A failed save must never block the analysis the user is looking at —
+      // but it must not be silent either, or the file quietly isn't there later.
       console.warn("Could not save upload:", e && e.message);
+      showError("Couldn't save " + (d.dataset.fileName || (fuel + ".csv")) +
+        " to your account. The analysis below still works, but it won't be here next visit.");
       return null;
     });
   }
@@ -5124,7 +5226,7 @@ body {
       return Promise.all(loaded.map(persistUpload)).then(function () {
         // A new export almost always covers a new period, so the cycle is
         // confirmed on every upload rather than only the first.
-        afterLoad(loaded[0], { promptBilling: true });
+        afterLoad(loaded.indexOf("electric") !== -1 ? "electric" : loaded[0], { promptBilling: true });
         refreshUploadsPanel();
       });
     });
@@ -5135,15 +5237,30 @@ body {
     try {
       ingestText(App.sampleData.electric, "electric-sample.csv");
       ingestText(App.sampleData.gas, "gas-sample.csv");
-      afterLoad("electric", { promptBilling: true, sample: true });
+      State.uploadIds = { electric: null, gas: null };  // sample data is not a saved upload
+      afterLoad("electric", { promptBilling: true });
     } catch (e) { showError(e.message); }
   }
 
   function afterLoad(firstFuel, opts) {
-    State.activeFuel = State.data.electric ? "electric" : (State.data.gas ? "gas" : firstFuel);
+    // Follow the file that was actually opened; "electric leads" is a choice the
+    // multi-file batch path makes when handing us its fuel, not a rule here.
+    State.activeFuel = State.data[firstFuel] ? firstFuel
+      : (State.data.electric ? "electric" : "gas");
     State.questions = { electric: null, gas: null };  // regenerate for the new data
     var a = State.data[State.activeFuel].analysis;
-    State.accountKey = a.meta.account || a.meta.service || "default";
+    // Namespaced by the signed-in identity, never by the CSV's utility account
+    // alone — otherwise two people sharing a browser (or the same account
+    // number) read and overwrite each other's notes, answers and billing cycle.
+    var authUser = (App.api.currentUser && App.api.currentUser()) || null;
+    State.accountKey = (authUser && authUser.id ? authUser.id : "guest") + "|" +
+                       (a.meta.account || a.meta.service || "default");
+    if (opts && opts.billing) {
+      var acct0 = State.settings[State.accountKey] ||
+        (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
+      acct0.billing = opts.billing;
+      saveSettings();
+    }
     document.getElementById("hero").hidden = true;
     document.getElementById("dashboard").hidden = false;
     document.getElementById("btn-new").hidden = false;
@@ -5170,7 +5287,14 @@ body {
 
   function showError(msg) {
     var e = document.getElementById("error-box");
+    var hero = document.getElementById("hero");
+    // The banner lives in the hero, which is gone once a dashboard is up — move
+    // it to whichever container is actually on screen.
+    var host = hero.hidden ? document.getElementById("dashboard")
+                           : hero.querySelector(".hero-inner");
+    if (host && e.parentNode !== host) host.insertBefore(e, host.firstChild);
     e.textContent = "⚠ " + msg; e.hidden = false;
+    if (hero.hidden && e.scrollIntoView) e.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
   function hideError() { document.getElementById("error-box").hidden = true; }
 
@@ -5593,6 +5717,38 @@ body {
     });
   }
 
+  /*
+   * Pull a saved file's annotations and answers back down, so the notes someone
+   * made on one device are there on the next. Without this the writes are
+   * one-way and the labels silently vanish.
+   */
+  function hydrateSaved(fuel, uploadId) {
+    return Promise.all([
+      App.account.store.listAnnotations(uploadId),
+      App.account.store.listAnswers()
+    ]).then(function (res) {
+      var anns = res[0] || [], answers = res[1] || [];
+      if (!anns.length && !answers.length) return;
+      var prev = State.activeFuel;
+      State.activeFuel = fuel;
+      var st = acctSettings();
+      anns.forEach(function (r) {
+        var cur = st.annotations[fuel][r.date_key] = st.annotations[fuel][r.date_key] || {};
+        cur.away = !!r.away;
+        cur.cause = r.cause || "";
+      });
+      answers.forEach(function (r) {
+        if (!st.answers[r.fuel]) st.answers[r.fuel] = {};
+        st.answers[r.fuel][r.question_id] = r.value;
+      });
+      State.activeFuel = prev;
+      st.profile = deriveProfile();
+      saveSettings();
+      regenTips();
+      render();
+    }).catch(function () { /* labels are a nicety; never block the dashboard */ });
+  }
+
   /* Re-open a previously saved file: fetch the stored CSV and re-analyze it. */
   function openSavedUpload(id) {
     App.account.store.getUpload(id).then(function (row) {
@@ -5600,14 +5756,12 @@ body {
       var fuel = ingestText(row.csv, row.file_name || (row.fuel + ".csv"));
       State.uploadIds[fuel] = row.id;
       State.questions[fuel] = null;
-      // A saved file already has its cycle confirmed, so don't re-prompt.
-      if (row.billing_start && row.billing_end) {
-        var acct = State.settings[State.accountKey] ||
-          (State.settings[State.accountKey] = { billing: null, profile: null, annotations: { electric: {}, gas: {} } });
-        acct.billing = { startISO: row.billing_start, endISO: row.billing_end };
-        saveSettings();
-      }
-      afterLoad(fuel, { promptBilling: !(row.billing_start && row.billing_end) });
+      // The cycle is handed to afterLoad so it lands under the account key
+      // afterLoad itself computes — setting it here would use a stale key.
+      var cyc = (row.billing_start && row.billing_end)
+        ? { startISO: row.billing_start, endISO: row.billing_end } : null;
+      afterLoad(fuel, { promptBilling: !cyc, billing: cyc });
+      hydrateSaved(fuel, row.id);
     }).catch(function (e) {
       showError((e && e.message) || "That upload could not be loaded.");
     });
@@ -5800,7 +5954,7 @@ body {
     if (!qs.length) { box.innerHTML = "<div class='empty-hint'>No questions for this view.</div>"; return; }
 
     var answered = qs.filter(function (q) {
-      var a = ans[q.id];
+      var a = ans[answerKey(q)];
       return a != null && (!Array.isArray(a) || a.length);
     }).length;
 
@@ -5808,7 +5962,9 @@ body {
       (answered / qs.length * 100) + "%'></span></div><span class='ctx-progress-txt'>" +
       answered + " of " + qs.length + " answered · each answer sharpens your tips, and stays on this device</span></div>";
 
-    var cards = qs.map(function (q) { return renderQuestionCard(q, ans[q.id], ans[q.id + ":text"]); }).join("");
+    var cards = qs.map(function (q) {
+      return renderQuestionCard(q, ans[answerKey(q)], ans[answerKey(q) + ":text"]);
+    }).join("");
     box.innerHTML = head + "<div class='q-list'>" + cards + "</div>";
     wireQuestionCards(box, qs);
   }
@@ -5817,14 +5973,16 @@ body {
     var isAnswered = ansVal != null && (!Array.isArray(ansVal) || ansVal.length);
     var opts = q.options.map(function (o) {
       var sel = q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value;
-      return "<button type='button' class='q-opt" + (sel ? " q-opt-sel" : "") + "' data-q='" + q.id +
+      return "<button type='button' class='q-opt" + (sel ? " q-opt-sel" : "") + "' data-q='" + esc(answerKey(q)) +
         "' data-val='" + o.value + "'>" +
         "<span class='q-mark" + (q.multi ? " q-mark-box" : "") + "'>" + (sel ? (q.multi ? "✓" : "●") : "") + "</span>" +
         "<span class='q-opt-label'>" + o.label + "</span></button>";
     }).join("");
     var freeOpt = q.options.some(function (o) { return o.free && (q.multi ? (Array.isArray(ansVal) && ansVal.indexOf(o.value) !== -1) : ansVal === o.value); });
-    var freeInput = freeOpt ? "<input type='text' class='input q-free' data-q='" + q.id +
-      "' placeholder='Tell us more (optional)' value='" + (freeText ? String(freeText).replace(/"/g, "&quot;") : "") + "' />" : "";
+    // esc() escapes the single quote too; the previous &quot;-only escaping let a
+    // value break out of this attribute and inject an event handler.
+    var freeInput = freeOpt ? "<input type='text' class='input q-free' data-q='" + esc(answerKey(q)) +
+      "' placeholder='Tell us more (optional)' value='" + esc(freeText) + "' />" : "";
     return "<div class='q-card" + (isAnswered ? " q-answered" : "") + "'>" +
       "<div class='q-top'>" +
         "<div class='q-title'>" + q.title + (isAnswered ? " <span class='q-check'>✓</span>" : "") + "</div>" +
@@ -5833,24 +5991,24 @@ body {
       (q.subtitle ? "<div class='q-sub'>" + q.subtitle + "</div>" : "") +
       "<div class='q-opts" + (q.multi ? " q-opts-multi" : "") + "'>" + opts + "</div>" +
       freeInput +
-      (isAnswered ? "<button class='linkbtn q-clear' data-q='" + q.id + "'>Clear answer</button>" : "") +
+      (isAnswered ? "<button class='linkbtn q-clear' data-q='" + esc(answerKey(q)) + "'>Clear answer</button>" : "") +
       "</div>";
   }
 
   function wireQuestionCards(box, qs) {
     var byId = {};
-    qs.forEach(function (q) { byId[q.id] = q; });
+    qs.forEach(function (q) { byId[answerKey(q)] = q; });
     box.querySelectorAll(".q-opt").forEach(function (btn) {
       btn.onclick = function () {
         var q = byId[btn.dataset.q];
         var ans = acctSettings().answers[State.activeFuel];
         if (q.multi) {
-          var cur = Array.isArray(ans[q.id]) ? ans[q.id].slice() : [];
+          var cur = Array.isArray(ans[answerKey(q)]) ? ans[answerKey(q)].slice() : [];
           var i = cur.indexOf(btn.dataset.val);
           if (i === -1) cur.push(btn.dataset.val); else cur.splice(i, 1);
           setAnswer(q, cur);
         } else {
-          setAnswer(q, ans[q.id] === btn.dataset.val ? null : btn.dataset.val);
+          setAnswer(q, ans[answerKey(q)] === btn.dataset.val ? null : btn.dataset.val);
         }
       };
     });
@@ -6052,16 +6210,16 @@ body {
     s.billing = { startISO: startISO, endISO: endISO };
     saveSettings();
     // Record the confirmed cycle against the files it describes.
-    ["electric", "gas"].forEach(function (f) {
-      if (State.uploadIds[f]) {
-        App.account.store.updateUpload(State.uploadIds[f],
-          { billing_start: startISO, billing_end: endISO }).catch(function () {});
-      }
+    var pending = ["electric", "gas"].map(function (f) {
+      if (!State.uploadIds[f]) return Promise.resolve();
+      return App.account.store.updateUpload(State.uploadIds[f],
+        { billing_start: startISO, billing_end: endISO }).catch(function () {});
     });
     closeBillingModal();
     regenTips();
     render();
-    refreshUploadsPanel();
+    // Wait for the writes, or the panel can still read "no cycle set".
+    Promise.all(pending).then(refreshUploadsPanel);
   }
 
   /* ---- theme ------------------------------------------------------------ */
@@ -6175,6 +6333,7 @@ body {
       State.questions[fuel] = null;
       renderHead();
       renderUploads();
+      hydrateSaved(fuel, row.id);
     }).catch(function () {});
   }
 

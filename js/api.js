@@ -67,6 +67,13 @@
     return msg || "Something went wrong.";
   }
 
+  /* Only a server-side rejection means the stored credential is actually dead.
+     A network failure, the abort timeout, 429 or 5xx all leave the refresh
+     token perfectly valid — wiping it there logs people out for a blip. */
+  function isAuthRejection(e) {
+    return !!(e && (e.status === 400 || e.status === 401 || e.status === 403));
+  }
+
   function request(path, opts) {
     opts = opts || {};
     var headers = { apikey: KEY };
@@ -121,8 +128,8 @@
       return s;
     }).catch(function (e) {
       refreshing = null;
-      saveSession(null);          // refresh token is dead; force a fresh sign-in
-      throw e;
+      if (isAuthRejection(e)) saveSession(null);   // genuinely dead — sign in again
+      throw e;                                     // transient — keep the token
     });
     return refreshing;
   }
@@ -170,10 +177,15 @@
 
   function signOut() {
     var had = signedIn();
-    var done = had
-      ? authed("/auth/v1/logout", { method: "POST" }).catch(function () { /* local sign-out regardless */ })
-      : Promise.resolve();
-    return done.then(function () { saveSession(null); });
+    // Clear locally FIRST: on a shared machine, sign-out must be immediate and
+    // must not depend on the network being reachable.
+    var token = session && session.access_token;
+    saveSession(null);
+    if (!had) return Promise.resolve();
+    return request("/auth/v1/logout", {
+      method: "POST", auth: false, timeout: 5000,
+      headers: { Authorization: "Bearer " + token }
+    }).catch(function () { /* best effort — already signed out locally */ });
   }
 
   /* Confirm the stored session still works, and refresh the cached user. */
@@ -182,9 +194,10 @@
     return authed("/auth/v1/user", {}).then(function (u) {
       if (u && u.id) { session.user = u; saveSession(session); }
       return session;
-    }).catch(function () {
-      saveSession(null);
-      return null;
+    }).catch(function (e) {
+      // Opening the app offline must not sign you out.
+      if (isAuthRejection(e)) { saveSession(null); return null; }
+      return session;
     });
   }
 
